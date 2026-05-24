@@ -10,6 +10,7 @@ from app.db.models import (
     DashboardWidget,
     FinancialCache,
     HoldingsCache,
+    IpoLlmResearch,
     StockProfile,
     UserPreferences,
 )
@@ -197,6 +198,72 @@ def list_widgets(db: Session) -> list[dict[str, Any]]:
         }
         for r in rows
     ]
+
+
+# ── IpoLlmResearch ────────────────────────────────────────────────────────────
+
+def get_ipo_llm_research(db: Session, symbol: str) -> IpoLlmResearch | None:
+    return db.get(IpoLlmResearch, symbol.upper())
+
+
+def upsert_ipo_llm_research(
+    db: Session,
+    symbol: str,
+    provider: str,
+    payload_json: str,
+    fetched_at: datetime | None = None,
+) -> IpoLlmResearch:
+    symbol = symbol.upper()
+    row = db.get(IpoLlmResearch, symbol)
+    if row is None:
+        row = IpoLlmResearch(symbol=symbol)
+        db.add(row)
+    row.provider = provider
+    row.status = "fetched"
+    row.payload_json = payload_json
+    row.error_message = None
+    if fetched_at:
+        row.fetched_at = fetched_at
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def upsert_ipo_llm_failed(
+    db: Session,
+    symbol: str,
+    provider: str,
+    error_message: str,
+) -> IpoLlmResearch:
+    symbol = symbol.upper()
+    row = db.get(IpoLlmResearch, symbol)
+    if row is None:
+        row = IpoLlmResearch(symbol=symbol)
+        db.add(row)
+    row.provider = provider
+    row.status = "failed"
+    row.payload_json = row.payload_json or "{}"
+    row.error_message = error_message[:2000]
+    row.fetched_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def list_ipo_llm_status(
+    db: Session,
+    symbols: list[str],
+) -> dict[str, IpoLlmResearch | None]:
+    normalized = [s.upper().replace(".NS", "").strip() for s in symbols if s]
+    if not normalized:
+        return {}
+    rows = (
+        db.query(IpoLlmResearch)
+        .filter(IpoLlmResearch.symbol.in_(normalized))
+        .all()
+    )
+    by_symbol = {r.symbol: r for r in rows}
+    return {s: by_symbol.get(s) for s in normalized}
 
 
 def save_widgets(db: Session, widgets: list[dict[str, Any]]) -> None:

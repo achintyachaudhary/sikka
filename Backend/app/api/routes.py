@@ -1,7 +1,10 @@
 """API route handlers."""
 
+import logging
 import time
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -16,6 +19,18 @@ from app.models import (
     ScanResponse,
     StockDetail,
     StockInsightsResponse,
+)
+from app.schemas.ipo_llm import (
+    IpoBatchFetchRequest,
+    IpoBatchFetchResponse,
+    IpoLlmResearchResponse,
+    IpoLlmStatusResponse,
+)
+from app.services.ipo_llm_research import (
+    batch_fetch_ipo_research,
+    fetch_and_store_ipo_research,
+    get_cached_ipo_research,
+    get_ipo_llm_status_map,
 )
 from app.services.chart_data import VALID_TIMEFRAMES, fetch_chart_bars
 from app.services.ipo_tracker import track_recent_ipos
@@ -116,6 +131,52 @@ def ipo_tracker(
     refresh: bool = Query(False, description="Bypass cache"),
 ) -> IpoTrackResponse:
     return track_recent_ipos(months=months, refresh=refresh)
+
+
+@router.get("/api/ipo/llm-research/status", response_model=IpoLlmStatusResponse)
+def ipo_llm_research_status(
+    symbols: str = Query(..., description="Comma-separated NSE symbols"),
+) -> IpoLlmStatusResponse:
+    symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+    return get_ipo_llm_status_map(symbol_list)
+
+
+@router.post("/api/ipo/llm-research/batch", response_model=IpoBatchFetchResponse)
+def ipo_llm_research_batch(body: IpoBatchFetchRequest) -> IpoBatchFetchResponse:
+    try:
+        return batch_fetch_ipo_research(body.items, skip_fetched=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/api/ipo/{symbol}/llm-research", response_model=IpoLlmResearchResponse)
+def get_ipo_llm_research(symbol: str) -> IpoLlmResearchResponse:
+    result = get_cached_ipo_research(symbol)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No IPO LLM research cached for {symbol}. POST to generate.",
+        )
+    return result
+
+
+@router.post("/api/ipo/{symbol}/llm-research", response_model=IpoLlmResearchResponse)
+def generate_ipo_llm_research(
+    symbol: str,
+    company_name: str | None = Query(None, description="Optional company name for prompt"),
+    refresh: bool = Query(False, description="Bypass cache and call LLM again"),
+) -> IpoLlmResearchResponse:
+    try:
+        return fetch_and_store_ipo_research(
+            symbol,
+            company_name=company_name,
+            force_refresh=refresh,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("IPO LLM research failed for %s", symbol)
+        raise HTTPException(status_code=502, detail=f"LLM request failed: {exc}") from exc
 
 
 @router.get("/api/stock/{symbol}/chart", response_model=ChartResponse)

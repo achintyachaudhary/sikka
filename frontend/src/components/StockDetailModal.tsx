@@ -7,11 +7,13 @@ import { displaySymbol } from "../utils/tradingView";
 interface StockDetailModalProps {
   stock: SelectedStock | null;
   onClose: () => void;
+  showIpoResearch?: boolean;
 }
 
 export default function StockDetailModal({
   stock,
   onClose,
+  showIpoResearch = false,
 }: StockDetailModalProps) {
   useEffect(() => {
     if (!stock) return;
@@ -64,6 +66,8 @@ export default function StockDetailModal({
           <StockDetailContent
             symbol={stock.symbol}
             yfSymbol={stock.yfSymbol}
+            companyName={stock.label}
+            showIpoResearch={showIpoResearch}
           />
         </div>
       </div>

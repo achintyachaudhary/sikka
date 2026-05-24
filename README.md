@@ -60,6 +60,8 @@ The Vite dev server proxies `/api` and `/health` to the backend.
 | `GET /api/scan?index=nifty50&min_score=5&limit=100` | Scan selected index for bullish stocks |
 | `GET /api/stock/{symbol}` | Single stock detail (e.g. `RELIANCE.NS`) |
 | `GET /api/ipo?months=2` | Recent IPO listings (1–2 months) with listing performance |
+| `GET /api/ipo/{symbol}/llm-research` | Cached IPO subscription JSON (from LLM) |
+| `POST /api/ipo/{symbol}/llm-research` | Generate via LLM, validate, store in SQLite |
 
 ## Configuration
 
@@ -67,6 +69,12 @@ The Vite dev server proxies `/api` and `/health` to the backend.
 - Index symbols: fetched from NSE archives (`nsearchives.nseindia.com`), cached 24h in `Backend/data/cache/`
 - Scan `index` values: `nifty50`, `nifty100`, `nifty200`, `nifty500`, `nse_all`
 - CORS origins: set `CORS_ORIGINS` (default allows Vite on port 5173)
+- **IPO LLM research** (Gemini by default):
+  - `GEMINI_API_KEY` — required for `POST /api/ipo/{symbol}/llm-research`
+  - `GEMINI_MODEL` — optional (default `gemini-2.5-flash`; avoid `gemini-2.0-flash` if you hit 429 quota errors)
+  - `LLM_PROVIDER` — optional (default `gemini`; swap provider in `Backend/app/services/llm/` later)
+
+Copy `Backend/.env.example` to `Backend/.env` and set `GEMINI_API_KEY`. The API loads this file on startup via `python-dotenv`.
 
 ## Limitations
 

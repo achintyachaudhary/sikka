@@ -1,4 +1,9 @@
 import type { ChartResponse, ChartTimeframe } from "./types/chart";
+import type {
+  IpoBatchFetchResponse,
+  IpoLlmResearchResponse,
+  IpoLlmStatusResponse,
+} from "./types/ipoResearch";
 import type { IndicesResponse, IpoTrackResponse, ScanResponse, StockInsightsResponse } from "./types";
 
 export async function fetchIndices(): Promise<IndicesResponse> {
@@ -33,6 +38,90 @@ export async function fetchScan(
     throw new Error(detail);
   }
   return res.json() as Promise<ScanResponse>;
+}
+
+export async function fetchIpoLlmStatus(
+  symbols: string[],
+): Promise<IpoLlmStatusResponse> {
+  if (symbols.length === 0) {
+    return { statuses: [] };
+  }
+  const params = new URLSearchParams({
+    symbols: symbols.join(","),
+  });
+  const res = await fetch(`/api/ipo/llm-research/status?${params}`);
+  if (!res.ok) {
+    throw new Error(`IPO status failed (${res.status})`);
+  }
+  return res.json() as Promise<IpoLlmStatusResponse>;
+}
+
+export async function batchFetchIpoLlmResearch(
+  items: { symbol: string; company_name?: string | null }[],
+): Promise<IpoBatchFetchResponse> {
+  const res = await fetch("/api/ipo/llm-research/batch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      items: items.map((i) => ({
+        symbol: i.symbol,
+        company_name: i.company_name ?? null,
+      })),
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const detail =
+      typeof body.detail === "string"
+        ? body.detail
+        : `Batch IPO fetch failed (${res.status})`;
+    throw new Error(detail);
+  }
+  return res.json() as Promise<IpoBatchFetchResponse>;
+}
+
+export async function fetchIpoLlmResearch(
+  symbol: string,
+): Promise<IpoLlmResearchResponse> {
+  const encoded = encodeURIComponent(symbol);
+  const res = await fetch(`/api/ipo/${encoded}/llm-research`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const detail =
+      typeof body.detail === "string"
+        ? body.detail
+        : `IPO research not found (${res.status})`;
+    throw new Error(detail);
+  }
+  return res.json() as Promise<IpoLlmResearchResponse>;
+}
+
+export async function generateIpoLlmResearch(
+  symbol: string,
+  options?: { companyName?: string; refresh?: boolean },
+): Promise<IpoLlmResearchResponse> {
+  const encoded = encodeURIComponent(symbol);
+  const params = new URLSearchParams();
+  if (options?.companyName) {
+    params.set("company_name", options.companyName);
+  }
+  if (options?.refresh) {
+    params.set("refresh", "true");
+  }
+  const qs = params.toString();
+  const res = await fetch(
+    `/api/ipo/${encoded}/llm-research${qs ? `?${qs}` : ""}`,
+    { method: "POST" },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const detail =
+      typeof body.detail === "string"
+        ? body.detail
+        : `IPO LLM request failed (${res.status})`;
+    throw new Error(detail);
+  }
+  return res.json() as Promise<IpoLlmResearchResponse>;
 }
 
 export async function fetchIpos(

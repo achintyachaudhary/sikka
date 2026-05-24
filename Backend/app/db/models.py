@@ -84,3 +84,18 @@ class DashboardWidget(Base):
     size: Mapped[str] = mapped_column(String, default="md")  # sm | md | lg
     position: Mapped[int] = mapped_column(Integer, default=0)
     config_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class IpoLlmResearch(Base):
+    """IPO subscription / issue details from LLM (Gemini, etc.)."""
+
+    __tablename__ = "ipo_llm_research"
+
+    symbol: Mapped[str] = mapped_column(String, primary_key=True)
+    provider: Mapped[str] = mapped_column(String, default="gemini")
+    status: Mapped[str] = mapped_column(String, default="fetched")  # fetched | failed
+    payload_json: Mapped[str] = mapped_column(Text, default="{}")
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )

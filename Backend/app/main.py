@@ -1,6 +1,12 @@
 """FastAPI application entry point."""
 
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+_BACKEND_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(_BACKEND_DIR / ".env")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
 from app.api.dashboard_routes import dashboard_router
 from app.db.database import Base, engine
+from app.db.migrations import migrate_ipo_llm_research
+import app.db.models as _db_models  # noqa: F401 — register ORM tables before create_all
 from app.utils.network import configure_market_data_network
 
 # Must run before any yfinance / NSE HTTP calls (Cursor sets a local proxy that blocks Yahoo).
@@ -36,6 +44,7 @@ app.add_middleware(
 @app.on_event("startup")
 def _init_db() -> None:
     Base.metadata.create_all(bind=engine)
+    migrate_ipo_llm_research()
 
 
 app.include_router(router)

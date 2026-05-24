@@ -1,8 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { batchFetchIpoLlmResearch, fetchIpoLlmStatus } from "../api";
 import { useTableSort } from "../hooks/useTableSort";
-import type { IpoListing, SelectedStock } from "../types";
+import type { IpoListing } from "../types";
+import type { IpoLlmFetchStatus, IpoLlmStatusItem } from "../types/ipoResearch";
+import IpoStatusBadge from "./IpoStatusBadge";
+import IpoSubscriptionModal from "./IpoSubscriptionModal";
 import SortableTh from "./SortableTh";
-import StockDetailModal from "./StockDetailModal";
 import SymbolLink from "./SymbolLink";
 
 function fmtNum(v: number | null, digits = 2): string {
@@ -22,18 +25,96 @@ function PctCell({ value }: { value: number | null }) {
   );
 }
 
+function statusMapFromItems(items: IpoLlmStatusItem[]): Record<string, IpoLlmStatusItem> {
+  const m: Record<string, IpoLlmStatusItem> = {};
+  for (const item of items) {
+    m[item.symbol] = item;
+  }
+  return m;
+}
+
 interface IpoTableProps {
   rows: IpoListing[];
 }
 
 export default function IpoTable({ rows }: IpoTableProps) {
-  const [selected, setSelected] = useState<SelectedStock | null>(null);
+  const [statusBySymbol, setStatusBySymbol] = useState<Record<string, IpoLlmStatusItem>>({});
+  const [fetchingSymbols, setFetchingSymbols] = useState<Set<string>>(new Set());
+  const [bulkFetching, setBulkFetching] = useState(false);
+  const [bulkMsg, setBulkMsg] = useState<string | null>(null);
+  const [selected, setSelected] = useState<{
+    symbol: string;
+    companyName: string;
+  } | null>(null);
+
+  const symbols = useMemo(() => rows.map((r) => r.symbol), [rows]);
+
+  const loadStatus = useCallback(async () => {
+    if (symbols.length === 0) return;
+    try {
+      const res = await fetchIpoLlmStatus(symbols);
+      setStatusBySymbol(statusMapFromItems(res.statuses));
+    } catch {
+      /* keep previous */
+    }
+  }, [symbols]);
+
+  useEffect(() => {
+    void loadStatus();
+  }, [loadStatus]);
+
+  const getDisplayStatus = useCallback(
+    (symbol: string): IpoLlmFetchStatus => {
+      if (fetchingSymbols.has(symbol)) return "fetching";
+      const row = statusBySymbol[symbol];
+      if (!row || row.status === "pending") return "pending";
+      return row.status as IpoLlmFetchStatus;
+    },
+    [statusBySymbol, fetchingSymbols],
+  );
+
+  const needsFetchCount = useMemo(() => {
+    return symbols.filter((s) => {
+      const st = getDisplayStatus(s);
+      return st === "pending" || st === "failed";
+    }).length;
+  }, [symbols, getDisplayStatus]);
+
+  async function handleBulkFetch() {
+    const toFetch = rows.filter((r) => {
+      const st = getDisplayStatus(r.symbol);
+      return st === "pending" || st === "failed";
+    });
+    if (toFetch.length === 0) {
+      setBulkMsg("All IPOs already fetched.");
+      return;
+    }
+
+    setBulkFetching(true);
+    setBulkMsg(null);
+    setFetchingSymbols(new Set(toFetch.map((r) => r.symbol)));
+
+    try {
+      const res = await batchFetchIpoLlmResearch(
+        toFetch.map((r) => ({ symbol: r.symbol, company_name: r.company_name })),
+      );
+      setBulkMsg(
+        `Done: ${res.fetched_count} fetched, ${res.failed_count} failed, ${res.skipped_count} skipped.`,
+      );
+      await loadStatus();
+    } catch (err) {
+      setBulkMsg(err instanceof Error ? err.message : "Batch fetch failed");
+      await loadStatus();
+    } finally {
+      setBulkFetching(false);
+      setFetchingSymbols(new Set());
+    }
+  }
 
   const openRow = (row: IpoListing) => {
     setSelected({
       symbol: row.symbol,
-      yfSymbol: row.yf_symbol,
-      label: row.company_name || row.symbol,
+      companyName: row.company_name || row.symbol,
     });
   };
 
@@ -55,13 +136,36 @@ export default function IpoTable({ rows }: IpoTableProps) {
 
   const { sortedRows, sortKey, sortDir, toggleSort } = useTableSort(
     rows,
-    "listing_date",
+    "listing_day_gain_pct",
     "desc",
     getValue,
   );
 
+  const selectedStatus = selected ? getDisplayStatus(selected.symbol) : "pending";
+  const selectedError = selected
+    ? statusBySymbol[selected.symbol]?.error_message
+    : null;
+
   return (
     <>
+      <div className="ipo-bulk-bar">
+        <button
+          type="button"
+          className="refresh-btn"
+          disabled={bulkFetching || needsFetchCount === 0}
+          onClick={() => void handleBulkFetch()}
+        >
+          {bulkFetching
+            ? "Fetching IPO subscription…"
+            : `Fetch IPO subscription (${needsFetchCount} to fetch)`}
+        </button>
+        {bulkMsg && (
+          <span className="ipo-fetch-toast" role="status">
+            {bulkMsg}
+          </span>
+        )}
+      </div>
+
       <div className="table-wrap">
         <table>
           <thead>
@@ -76,6 +180,7 @@ export default function IpoTable({ rows }: IpoTableProps) {
               <SortableTh label="Day-1 %" sortKey="listing_day_gain_pct" activeKey={sortKey} direction={sortDir} onSort={toggleSort} />
               <SortableTh label="vs Issue %" sortKey="gain_vs_issue_pct" activeKey={sortKey} direction={sortDir} onSort={toggleSort} />
               <SortableTh label="vs List close %" sortKey="gain_vs_listing_close_pct" activeKey={sortKey} direction={sortDir} onSort={toggleSort} />
+              <th>Subscription</th>
             </tr>
           </thead>
           <tbody>
@@ -87,6 +192,8 @@ export default function IpoTable({ rows }: IpoTableProps) {
               ]
                 .filter(Boolean)
                 .join(" ");
+              const st = getDisplayStatus(row.symbol);
+              const sub = statusBySymbol[row.symbol]?.overall_times_subscribed;
 
               return (
                 <tr
@@ -101,7 +208,7 @@ export default function IpoTable({ rows }: IpoTableProps) {
                     }
                   }}
                   role="button"
-                  aria-label={`View details for ${row.symbol}`}
+                  aria-label={`View IPO subscription for ${row.symbol}`}
                 >
                   <td onClick={(e) => e.stopPropagation()}>
                     <SymbolLink symbol={row.symbol} yfSymbol={row.yf_symbol} />
@@ -117,6 +224,12 @@ export default function IpoTable({ rows }: IpoTableProps) {
                   <td><PctCell value={row.listing_day_gain_pct} /></td>
                   <td><PctCell value={row.gain_vs_issue_pct} /></td>
                   <td><PctCell value={row.gain_vs_listing_close_pct} /></td>
+                  <td>
+                    <IpoStatusBadge status={st} />
+                    {st === "fetched" && sub != null && (
+                      <span className="ipo-sub-preview"> · {sub.toFixed(2)}×</span>
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -124,7 +237,13 @@ export default function IpoTable({ rows }: IpoTableProps) {
         </table>
       </div>
 
-      <StockDetailModal stock={selected} onClose={() => setSelected(null)} />
+      <IpoSubscriptionModal
+        symbol={selected?.symbol ?? null}
+        companyName={selected?.companyName}
+        fetchStatus={selectedStatus}
+        errorMessage={selectedError}
+        onClose={() => setSelected(null)}
+      />
     </>
   );
 }

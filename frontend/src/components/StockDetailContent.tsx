@@ -3,6 +3,7 @@ import { fetchStockInsights, refreshStockData } from "../api";
 import type { StockInsightsResponse } from "../types";
 import FinancialChart from "./FinancialChart";
 import ShareholdingChart from "./ShareholdingChart";
+import IpoLlmResearchPanel from "./IpoLlmResearchPanel";
 import StockChartPanel from "./StockChartPanel";
 
 function fmtCapCr(v: number | null): string {
@@ -28,11 +29,15 @@ function fmtTs(ts: string | null): string {
 interface StockDetailContentProps {
   symbol: string;
   yfSymbol?: string | null;
+  companyName?: string | null;
+  showIpoResearch?: boolean;
 }
 
 export default function StockDetailContent({
   symbol,
   yfSymbol,
+  companyName,
+  showIpoResearch = false,
 }: StockDetailContentProps) {
   const [data, setData] = useState<StockInsightsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,6 +108,10 @@ export default function StockDetailContent({
         </button>
         {error && <span style={{ color: "var(--red)" }}>{error}</span>}
       </div>
+
+      {showIpoResearch && (
+        <IpoLlmResearchPanel symbol={symbol} companyName={companyName} />
+      )}
 
       <StockChartPanel symbol={symbol} yfSymbol={yfSymbol} />
 
