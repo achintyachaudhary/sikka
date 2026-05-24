@@ -14,7 +14,7 @@ class ShareholdingInfo(BaseModel):
     holding_source: str | None = None
 
 
-class StockSignal(ShareholdingInfo):
+class StockSignal(BaseModel):
     symbol: str
     price: float
     change_5d_pct: float | None = None
@@ -40,6 +40,47 @@ class StockDetail(StockSignal):
     history: list[PriceBar] = Field(default_factory=list)
 
 
+class ShareholdingPeriod(BaseModel):
+    as_of: str
+    label: str
+    promoter_holding_pct: float | None = None
+    fii_holding_pct: float | None = None
+    dii_holding_pct: float | None = None
+    public_holding_pct: float | None = None
+    retail_and_others_pct: float | None = None
+    mutual_fund_holding_pct: float | None = None
+
+
+class FinancialPeriod(BaseModel):
+    period: str
+    label: str
+    revenue_cr: float | None = None
+    profit_cr: float | None = None
+
+
+class FinancialSummary(BaseModel):
+    revenue_growth_yoy_pct: float | None = None
+    revenue_cagr_3y_pct: float | None = None
+    profit_growth_yoy_pct: float | None = None
+    profit_cagr_3y_pct: float | None = None
+
+
+class StockInsightsResponse(BaseModel):
+    symbol: str
+    company_name: str
+    sector: str | None = None
+    industry: str | None = None
+    market_cap_cr: float | None = None
+    market_cap_category: str | None = None
+    shareholding: list[ShareholdingPeriod] = Field(default_factory=list)
+    financials_quarterly: list[FinancialPeriod] = Field(default_factory=list)
+    financials_yearly: list[FinancialPeriod] = Field(default_factory=list)
+    revenue_growth_yoy_pct: float | None = None
+    revenue_cagr_3y_pct: float | None = None
+    profit_growth_yoy_pct: float | None = None
+    profit_cagr_3y_pct: float | None = None
+
+
 class ScanResponse(BaseModel):
     scanned_at: str
     index: str
@@ -61,7 +102,7 @@ class IndicesResponse(BaseModel):
     indices: list[IndexOption]
 
 
-class IpoListing(ShareholdingInfo):
+class IpoListing(BaseModel):
     symbol: str
     company_name: str
     security_type: str = ""

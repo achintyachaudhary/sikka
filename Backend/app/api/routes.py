@@ -13,9 +13,11 @@ from app.models import (
     IpoTrackResponse,
     ScanResponse,
     StockDetail,
+    StockInsightsResponse,
 )
 from app.services.ipo_tracker import track_recent_ipos
 from app.services.screener import analyze_symbol_detail, run_scan
+from app.services.stock_insights import get_stock_insights
 from app.watchlists.indices import IndexId, get_index_options
 from app.watchlists.loader import get_watchlist_count
 
@@ -111,6 +113,11 @@ def ipo_tracker(
     refresh: bool = Query(False, description="Bypass cache"),
 ) -> IpoTrackResponse:
     return track_recent_ipos(months=months, refresh=refresh)
+
+
+@router.get("/api/stock/{symbol}/insights", response_model=StockInsightsResponse)
+def stock_insights(symbol: str) -> StockInsightsResponse:
+    return get_stock_insights(symbol)
 
 
 @router.get("/api/stock/{symbol}", response_model=StockDetail)

@@ -1,15 +1,4 @@
-export interface ShareholdingInfo {
-  promoter_holding_pct: number | null;
-  fii_holding_pct: number | null;
-  dii_holding_pct: number | null;
-  public_holding_pct: number | null;
-  mutual_fund_holding_pct: number | null;
-  institutional_holding_pct: number | null;
-  holding_as_of: string | null;
-  holding_source: string | null;
-}
-
-export interface StockSignal extends ShareholdingInfo {
+export interface StockSignal {
   symbol: string;
   price: number;
   change_5d_pct: number | null;
@@ -47,7 +36,7 @@ export interface IndicesResponse {
   indices: IndexOption[];
 }
 
-export interface IpoListing extends ShareholdingInfo {
+export interface IpoListing {
   symbol: string;
   company_name: string;
   security_type: string;
@@ -78,3 +67,10 @@ export interface IpoTrackResponse {
 }
 
 export type AppTab = "screener" | "ipo";
+
+export type {
+  FinancialPeriod,
+  SelectedStock,
+  ShareholdingPeriod,
+  StockInsightsResponse,
+} from "./types/insights";

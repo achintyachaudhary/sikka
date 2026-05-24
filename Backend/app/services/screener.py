@@ -18,7 +18,6 @@ from app.watchlists.indices import INDEX_META, IndexId
 from app.watchlists.loader import get_watchlist
 from app.models import ScanResponse, StockDetail, StockSignal
 from app.services.fetcher import fetch_history
-from app.services.holdings import get_shareholding
 from app.services.indicators import add_indicators, pct_change
 
 logger = logging.getLogger(__name__)
@@ -130,9 +129,6 @@ def analyze_symbol_detail(symbol: str, history_bars: int = 30) -> StockDetail | 
     if signal is None:
         return None
 
-    holdings = get_shareholding(symbol, fetch_xbrl=True)
-    signal = signal.model_copy(update=holdings)
-
     tail = df.tail(history_bars)
     history = [
         {"date": idx.strftime("%Y-%m-%d"), "close": round(float(row["close"]), 2)}
@@ -146,8 +142,7 @@ def _scan_symbol(symbol: str, min_score: int) -> StockSignal | None:
     try:
         signal = analyze_symbol(symbol)
         if signal and signal.score >= min_score:
-            holdings = get_shareholding(symbol, fetch_xbrl=True)
-            return signal.model_copy(update=holdings)
+            return signal
     except Exception:
         logger.exception("Error analyzing %s", symbol)
     return None

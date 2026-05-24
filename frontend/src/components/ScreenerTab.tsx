@@ -114,10 +114,6 @@ export default function ScreenerTab() {
       {selectedIndex?.description && (
         <p className="meta index-desc">{selectedIndex.description}</p>
       )}
-      <p className="meta index-desc">
-        Shareholding % (Promoter, FII, DII, Public) from latest NSE filing;
-        Inst. % from yfinance when available.
-      </p>
 
       {isSlowScan && (
         <p className="status warn-banner">

@@ -1,4 +1,4 @@
-import type { IndicesResponse, IpoTrackResponse, ScanResponse } from "./types";
+import type { IndicesResponse, IpoTrackResponse, ScanResponse, StockInsightsResponse } from "./types";
 
 export async function fetchIndices(): Promise<IndicesResponse> {
   const res = await fetch("/api/indices");
@@ -48,4 +48,15 @@ export async function fetchIpos(
     throw new Error(`IPO fetch failed (${res.status})`);
   }
   return res.json() as Promise<IpoTrackResponse>;
+}
+
+export async function fetchStockInsights(
+  symbol: string,
+): Promise<StockInsightsResponse> {
+  const encoded = encodeURIComponent(symbol);
+  const res = await fetch(`/api/stock/${encoded}/insights`);
+  if (!res.ok) {
+    throw new Error(`Insights failed (${res.status})`);
+  }
+  return res.json() as Promise<StockInsightsResponse>;
 }

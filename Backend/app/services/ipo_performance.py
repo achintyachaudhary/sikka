@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 import yfinance as yf
 
 from app.config import SCAN_MAX_WORKERS
-from app.services.holdings import get_shareholding
 
 logger = logging.getLogger(__name__)
 
@@ -70,12 +69,8 @@ def _enrich_ipo(row: dict) -> dict:
     if current_price is None:
         status = "no_market_data"
 
-    yf_sym = yf_symbol or f"{row['symbol']}.NS"
-    holdings = get_shareholding(yf_sym, fetch_xbrl=False)
-
     return {
         **row,
-        **holdings,
         "yf_symbol": yf_symbol,
         "listing_open": listing_open,
         "listing_close": listing_close,

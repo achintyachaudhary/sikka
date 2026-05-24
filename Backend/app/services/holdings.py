@@ -6,6 +6,7 @@ import json
 import logging
 import time
 import xml.etree.ElementTree as ET
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -63,18 +64,23 @@ def _nse_session() -> requests.Session:
     return session
 
 
+def _fetch_nse_master_list(nse_symbol: str) -> list[dict]:
+    session = _nse_session()
+    response = session.get(
+        "https://www.nseindia.com/api/corporate-share-holdings-master",
+        params={"index": "equities", "symbol": nse_symbol},
+        timeout=20,
+    )
+    response.raise_for_status()
+    rows = response.json()
+    return rows if isinstance(rows, list) else []
+
+
 def _fetch_nse_master(nse_symbol: str) -> dict | None:
     """Latest shareholding filing summary from NSE."""
     try:
-        session = _nse_session()
-        response = session.get(
-            "https://www.nseindia.com/api/corporate-share-holdings-master",
-            params={"index": "equities", "symbol": nse_symbol},
-            timeout=20,
-        )
-        response.raise_for_status()
-        rows = response.json()
-        if not isinstance(rows, list) or not rows:
+        rows = _fetch_nse_master_list(nse_symbol)
+        if not rows:
             return None
 
         def sort_key(row: dict) -> tuple:
@@ -223,3 +229,72 @@ def get_shareholding(symbol: str, *, fetch_xbrl: bool = True) -> dict:
     _write_cache(nse_symbol, data)
     _memory[nse_symbol] = (now + 300, data)
     return data.copy()
+
+
+def _date_to_label(raw: str) -> str:
+    """31-MAR-2026 -> Mar '26"""
+    try:
+        dt = datetime.strptime(raw.upper(), "%d-%b-%Y")
+        return dt.strftime("%b '%y")
+    except ValueError:
+        return raw
+
+
+def get_shareholding_history(symbol: str, max_periods: int = 5) -> list[dict]:
+    """Historical quarterly shareholding from NSE XBRL filings."""
+    nse_symbol = _nse_symbol(symbol)
+    try:
+        rows = _fetch_nse_master_list(nse_symbol)
+    except Exception:
+        logger.exception("NSE master list failed for %s", nse_symbol)
+        return []
+
+    def sort_key(row: dict) -> tuple:
+        date = _parse_nse_date(row.get("date", "")) or ""
+        return (date, row.get("submissionDate") or "")
+
+    rows.sort(key=sort_key, reverse=True)
+
+    seen_dates: set[str] = set()
+    periods: list[dict] = []
+
+    for row in rows:
+        if len(periods) >= max_periods:
+            break
+        as_of = _parse_nse_date(row.get("date", ""))
+        if not as_of or as_of in seen_dates:
+            continue
+        xbrl = (row.get("xbrl") or "").strip()
+        if not xbrl or xbrl.endswith("/null") or xbrl.endswith("null"):
+            continue
+
+        seen_dates.add(as_of)
+        entry: dict = {
+            "as_of": as_of,
+            "label": _date_to_label(as_of),
+            "promoter_holding_pct": _parse_pct(row.get("pr_and_prgrp")),
+            "public_holding_pct": _parse_pct(row.get("public_val")),
+            "fii_holding_pct": None,
+            "dii_holding_pct": None,
+            "mutual_fund_holding_pct": None,
+        }
+
+        try:
+            xbrl_data = _parse_xbrl_holdings(xbrl)
+            for key, val in xbrl_data.items():
+                if val is not None:
+                    entry[key] = val
+        except Exception:
+            logger.warning("XBRL history parse failed for %s %s", nse_symbol, as_of)
+
+        retail = entry.get("public_holding_pct")
+        if retail is None and entry.get("promoter_holding_pct") is not None:
+            inst = (entry.get("fii_holding_pct") or 0) + (entry.get("dii_holding_pct") or 0)
+            prom = entry.get("promoter_holding_pct") or 0
+            retail = round(max(0, 100 - prom - inst), 2)
+        entry["retail_and_others_pct"] = retail
+
+        periods.append(entry)
+
+    periods.reverse()
+    return periods
