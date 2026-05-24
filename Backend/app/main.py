@@ -15,8 +15,11 @@ from app.api.routes import router
 from app.api.dashboard_routes import dashboard_router
 from app.api.ipo_research_routes import ipo_research_router
 from app.db.database import Base, engine
-from app.db.migrations import migrate_ipo_llm_research, migrate_ipo_ml_features
+from app.db.migrations import migrate_ipo_listings, migrate_ipo_llm_research, migrate_ipo_ml_features
 import app.db.models as _db_models  # noqa: F401 — register ORM tables before create_all
+
+# Ensure shared IPO table exists
+_db_models.IpoListing.__table__.create(bind=engine, checkfirst=True)
 from app.utils.network import configure_market_data_network
 from app.utils.yfinance_quiet import configure_yfinance_logging
 
@@ -49,6 +52,7 @@ def _init_db() -> None:
     Base.metadata.create_all(bind=engine)
     migrate_ipo_llm_research()
     migrate_ipo_ml_features()
+    migrate_ipo_listings()
 
 
 app.include_router(router)

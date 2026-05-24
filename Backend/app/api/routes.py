@@ -127,7 +127,7 @@ def scan(
 
 @router.get("/api/ipo", response_model=IpoTrackResponse)
 def ipo_tracker(
-    months: int = Query(2, ge=1, le=2, description="Look back 1 or 2 months"),
+    months: int = Query(2, ge=1, le=6, description="Look back 1, 2, or 6 months"),
     refresh: bool = Query(False, description="Bypass cache"),
 ) -> IpoTrackResponse:
     return track_recent_ipos(months=months, refresh=refresh)

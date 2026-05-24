@@ -52,3 +52,41 @@ def migrate_ipo_ml_features() -> None:
                 "WHERE enrichment_status IS NULL OR enrichment_status = ''"
             )
         )
+
+
+def migrate_ipo_listings() -> None:
+    """Create ipo_listings and copy legacy ipo_ml_features rows."""
+    import app.db.models as _models  # noqa: F401 — register tables
+
+    _models.IpoListing.__table__.create(bind=engine, checkfirst=True)
+
+    insp = inspect(engine)
+    if "ipo_listings" not in insp.get_table_names():
+        return
+
+    # Copy from ipo_ml_features if present
+    if "ipo_ml_features" in insp.get_table_names():
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    INSERT OR IGNORE INTO ipo_listings (
+                        symbol, company_name, listing_date, features_json, targets_json,
+                        ml_status, ml_built_at, market_status, updated_at
+                    )
+                    SELECT symbol, company_name, listing_date, features_json, targets_json,
+                           CASE enrichment_status
+                             WHEN 'ready' THEN 'ready'
+                             WHEN 'no_market_data' THEN 'no_market_data'
+                             ELSE 'incomplete'
+                           END,
+                           built_at,
+                           CASE enrichment_status
+                             WHEN 'no_market_data' THEN 'no_market_data'
+                             ELSE 'listed'
+                           END,
+                           built_at
+                    FROM ipo_ml_features
+                    """
+                )
+            )

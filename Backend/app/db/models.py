@@ -106,8 +106,55 @@ class MarketIndexCache(Base):
     )
 
 
+class IpoListing(Base):
+    """
+    Shared IPO catalog for IPO Tracker + IPO Research (single source of truth).
+    """
+
+    __tablename__ = "ipo_listings"
+
+    symbol: Mapped[str] = mapped_column(String, primary_key=True)
+    company_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    security_type: Mapped[str] = mapped_column(String, default="")
+    ipo_start_date: Mapped[str] = mapped_column(String, default="")
+    ipo_end_date: Mapped[str] = mapped_column(String, default="")
+    listing_date: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    listing_date_display: Mapped[str] = mapped_column(String, default="")
+    issue_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    price_range: Mapped[str] = mapped_column(String, default="")
+
+    yf_symbol: Mapped[str | None] = mapped_column(String, nullable=True)
+    listing_open: Mapped[float | None] = mapped_column(Float, nullable=True)
+    listing_close: Mapped[float | None] = mapped_column(Float, nullable=True)
+    listing_high: Mapped[float | None] = mapped_column(Float, nullable=True)
+    current_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    listing_day_gain_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    gain_vs_issue_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    gain_vs_listing_close_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    gain_listing_open_to_current_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    market_status: Mapped[str] = mapped_column(
+        String, default="pending"
+    )  # pending | listed | no_market_data
+
+    features_json: Mapped[str] = mapped_column(Text, default="{}")
+    targets_json: Mapped[str] = mapped_column(Text, default="{}")
+    ml_status: Mapped[str] = mapped_column(
+        String, default="pending"
+    )  # pending | ready | no_market_data | incomplete
+
+    price_fetched_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    ml_built_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
 class IpoMlFeatureRow(Base):
-    """Per-IPO feature vector + targets for ML research."""
+    """Deprecated: migrated to ipo_listings. Kept for DB migration only."""
 
     __tablename__ = "ipo_ml_features"
 
@@ -116,9 +163,7 @@ class IpoMlFeatureRow(Base):
     company_name: Mapped[str | None] = mapped_column(String, nullable=True)
     features_json: Mapped[str] = mapped_column(Text, nullable=False)
     targets_json: Mapped[str] = mapped_column(Text, nullable=False)
-    enrichment_status: Mapped[str] = mapped_column(
-        String, default="ready"
-    )  # ready | no_market_data | incomplete
+    enrichment_status: Mapped[str] = mapped_column(String, default="ready")
     built_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
     )

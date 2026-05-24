@@ -4,7 +4,7 @@ import type { IpoTrackResponse } from "../types";
 import IpoTable from "./IpoTable";
 
 export default function IpoTab() {
-  const [months, setMonths] = useState<1 | 2>(2);
+  const [months, setMonths] = useState<1 | 2 | 6>(6);
   const [data, setData] = useState<IpoTrackResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,11 +47,12 @@ export default function IpoTab() {
           Period
           <select
             value={months}
-            onChange={(e) => setMonths(Number(e.target.value) as 1 | 2)}
+            onChange={(e) => setMonths(Number(e.target.value) as 1 | 2 | 6)}
             disabled={loading}
           >
             <option value={1}>Last 1 month</option>
             <option value={2}>Last 2 months</option>
+            <option value={6}>Last 6 months</option>
           </select>
         </label>
         <button

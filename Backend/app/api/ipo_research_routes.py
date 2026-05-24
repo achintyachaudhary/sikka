@@ -18,24 +18,34 @@ ipo_research_router = APIRouter(prefix="/api/ipo-research", tags=["ipo-research"
 
 
 class PrepareDataResponse(BaseModel):
-    total_nse_ipos: int
-    months_back: int = 6
+    total_nse_ipos: int = 0
+    months_back: int = 2
+    months: int | None = 2
     skipped_invalid_symbols: int = 0
-    newly_enriched: int
-    newly_saved: int
-    skipped_cached: int
+    newly_enriched: int = 0
+    newly_saved: int = 0
+    skipped_cached: int = 0
     failed_enrich: int = 0
     skipped_no_market_data: int = 0
     no_market_data: int = 0
-    total_dataset_rows: int
+    catalog_total: int = 0
+    with_market_data: int = 0
+    ml_ready: int = 0
+    total_dataset_rows: int = 0
     total_rows_attempted: int = 0
-    pending_remaining: int
+    pending_remaining: int = 0
 
 
 class DatasetStatsResponse(BaseModel):
     total_rows: int
+    nse_universe: int = 0
+    catalog_total: int = 0
+    with_market_data: int = 0
+    no_market_data: int = 0
+    ml_ready: int = 0
+    ml_ready_matches_prices: bool = True
     universe_size: int = 0
-    months_back: int = 24
+    months_back: int = 6
     pending: int = 0
     latest_built_at: str | None
     min_rows_for_ml: int
@@ -56,17 +66,34 @@ class RunExperimentRequest(BaseModel):
 
 
 @ipo_research_router.get("/dataset/stats", response_model=DatasetStatsResponse)
-def get_dataset_stats() -> DatasetStatsResponse:
-    return DatasetStatsResponse(**dataset_stats())
+def get_dataset_stats(
+    months: int | None = Query(
+        6,
+        ge=1,
+        le=120,
+        description="NSE listing window (same as prepare). Use 120 for all since 2018.",
+    ),
+) -> DatasetStatsResponse:
+    return DatasetStatsResponse(**dataset_stats(months=months))
 
 
 @ipo_research_router.post("/dataset/prepare", response_model=PrepareDataResponse)
 def prepare_dataset(
     force: bool = Query(False),
     batch_size: int = Query(40, ge=5, le=80),
+    months: int | None = Query(
+        6,
+        ge=1,
+        le=120,
+        description="NSE listing window (align with IPO Tracker). Use 120 for ~all since 2018.",
+    ),
 ) -> PrepareDataResponse:
     try:
-        result = prepare_ipo_dataset(force_refresh=force, batch_size=batch_size)
+        result = prepare_ipo_dataset(
+            force_refresh=force,
+            batch_size=batch_size,
+            months=months,
+        )
         return PrepareDataResponse(**result)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

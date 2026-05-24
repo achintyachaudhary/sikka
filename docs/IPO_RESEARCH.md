@@ -6,7 +6,7 @@ This document describes the **IPO Research** feature: building a historical IPO 
 
 | Step | What happens |
 |------|----------------|
-| **1. Prepare data** | Loads **all equity IPOs** from NSE past-issues API (cached in `Backend/data/cache/past_ipos.json`), enriches each with yfinance listing performance, market index features, and optional LLM subscription fields. Stored in SQLite table `ipo_ml_features`. |
+| **1. Prepare data** | Syncs NSE past-issues + Yahoo prices into shared SQLite table **`ipo_listings`** (same DB as IPO Tracker), then builds ML feature rows for every IPO that has price data. |
 | **2. Market indices** | NIFTY, BANKNIFTY, SENSEX **1Y daily bars** in `market_index_cache` (used for returns & technicals before each listing). |
 | **3. ML runs** | scikit-learn classifiers predict whether a defined “profit” target would have been met; feature importance and rule-based insights are saved per run. |
 | **4. UI** | **IPO Research** tab: prepare data, run algorithms, view run history and outcomes. |
@@ -60,15 +60,20 @@ For domain background, see NSE IPO disclosures, BSE listing norms, and general r
 
 ## Database tables
 
-### `ipo_ml_features`
+### `ipo_listings` (shared with IPO Tracker)
 
 | Column | Description |
 |--------|-------------|
 | `symbol` | PK |
 | `listing_date` | ISO date |
-| `features_json` | Model inputs |
-| `targets_json` | Outcome labels + raw % gains |
-| `built_at` | Last build time |
+| `market_status` | `pending` / `listed` / `no_market_data` |
+| `current_price`, gains | Yahoo enrichment (Tracker UI) |
+| `features_json` / `targets_json` | ML inputs/labels (Research) |
+| `ml_status` | `ready` when features built; `no_market_data` when Yahoo has no history |
+
+**ML-ready count** equals IPOs with Yahoo prices in the chosen window — not every NSE row (recent listings often lack tradeable history yet).
+
+Legacy `ipo_ml_features` is migrated into `ipo_listings` on startup.
 
 ### `ipo_research_runs`
 

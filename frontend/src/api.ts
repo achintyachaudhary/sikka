@@ -239,14 +239,15 @@ export async function fetchTopMovers() {
 
 // ── IPO Research (ML) ───────────────────────────────────────────────────────
 
-export async function fetchIpoResearchDatasetStats() {
-  const res = await fetch("/api/ipo-research/dataset/stats");
+export async function fetchIpoResearchDatasetStats(months = 6) {
+  const params = new URLSearchParams({ months: String(months) });
+  const res = await fetch(`/api/ipo-research/dataset/stats?${params}`);
   if (!res.ok) throw new Error(`Dataset stats failed (${res.status})`);
   return res.json();
 }
 
-export async function prepareIpoResearchDataset(force = false) {
-  const params = new URLSearchParams({ batch_size: "40" });
+export async function prepareIpoResearchDataset(force = false, months = 6) {
+  const params = new URLSearchParams({ batch_size: "40", months: String(months) });
   if (force) params.set("force", "true");
   const res = await fetch(`/api/ipo-research/dataset/prepare?${params}`, {
     method: "POST",

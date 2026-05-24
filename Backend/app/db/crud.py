@@ -10,6 +10,7 @@ from app.db.models import (
     DashboardWidget,
     FinancialCache,
     HoldingsCache,
+    IpoListing,
     IpoLlmResearch,
     IpoMlFeatureRow,
     IpoResearchRun,
@@ -239,7 +240,77 @@ def upsert_market_index(
     return row
 
 
-# ── IpoMlFeatureRow ───────────────────────────────────────────────────────────
+# ── IpoListing (shared Tracker + Research) ────────────────────────────────────
+
+def get_ipo_listing(db: Session, symbol: str) -> IpoListing | None:
+    return db.get(IpoListing, symbol.upper())
+
+
+def upsert_ipo_listing(db: Session, symbol: str, **fields: Any) -> IpoListing:
+    symbol = symbol.upper()
+    row = db.get(IpoListing, symbol)
+    if row is None:
+        row = IpoListing(symbol=symbol, listing_date=fields.get("listing_date", ""))
+        db.add(row)
+    for key, value in fields.items():
+        if hasattr(row, key):
+            setattr(row, key, value)
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def list_ipo_listings(
+    db: Session,
+    *,
+    symbols: set[str] | None = None,
+    ml_ready_only: bool = False,
+) -> list[IpoListing]:
+    q = db.query(IpoListing)
+    if symbols:
+        q = q.filter(IpoListing.symbol.in_([s.upper() for s in symbols]))
+    if ml_ready_only:
+        q = q.filter(IpoListing.ml_status == "ready")
+    return q.order_by(IpoListing.listing_date.desc()).all()
+
+
+def latest_ipo_listing_update(db: Session) -> datetime | None:
+    row = db.query(IpoListing).order_by(IpoListing.updated_at.desc()).first()
+    return row.updated_at if row else None
+
+
+def ipo_listing_to_dict(row: IpoListing) -> dict[str, Any]:
+    market_status = row.market_status or "pending"
+    status = (
+        "no_market_data"
+        if market_status == "no_market_data"
+        else ("listed" if row.current_price is not None else "no_market_data")
+    )
+    return {
+        "symbol": row.symbol,
+        "company_name": row.company_name or row.symbol,
+        "security_type": row.security_type or "",
+        "ipo_start_date": row.ipo_start_date or "",
+        "ipo_end_date": row.ipo_end_date or "",
+        "listing_date": row.listing_date,
+        "listing_date_display": row.listing_date_display or row.listing_date,
+        "issue_price": row.issue_price,
+        "price_range": row.price_range or "",
+        "yf_symbol": row.yf_symbol,
+        "listing_open": row.listing_open,
+        "listing_close": row.listing_close,
+        "listing_high": row.listing_high,
+        "current_price": row.current_price,
+        "listing_day_gain_pct": row.listing_day_gain_pct,
+        "gain_vs_issue_pct": row.gain_vs_issue_pct,
+        "gain_vs_listing_close_pct": row.gain_vs_listing_close_pct,
+        "gain_listing_open_to_current_pct": row.gain_listing_open_to_current_pct,
+        "status": status,
+    }
+
+
+# ── IpoMlFeatureRow (legacy) ──────────────────────────────────────────────────
 
 def get_ipo_ml_row(db: Session, symbol: str) -> IpoMlFeatureRow | None:
     return db.get(IpoMlFeatureRow, symbol.upper())

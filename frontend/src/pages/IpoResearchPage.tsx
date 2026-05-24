@@ -16,9 +16,16 @@ const TARGET_LABELS: Record<string, string> = {
   profit_buy_listing_open: "Profit if bought at listing open",
 };
 
+const RESEARCH_MONTHS = 6;
+
 export default function IpoResearchPage() {
   const [stats, setStats] = useState<{
     total_rows: number;
+    nse_universe?: number;
+    catalog_total?: number;
+    with_market_data?: number;
+    no_market_data?: number;
+    ml_ready?: number;
     universe_size?: number;
     pending?: number;
     months_back?: number;
@@ -42,7 +49,7 @@ export default function IpoResearchPage() {
   const refresh = useCallback(async () => {
     try {
       const [s, r, a] = await Promise.all([
-        fetchIpoResearchDatasetStats(),
+        fetchIpoResearchDatasetStats(RESEARCH_MONTHS),
         fetchIpoResearchRuns(),
         fetchIpoResearchAlgorithms(),
       ]);
@@ -72,21 +79,20 @@ export default function IpoResearchPage() {
     try {
       while (pending > 0 && batchNum < maxBatches) {
         batchNum += 1;
-        const batch = await prepareIpoResearchDataset(false);
+        const batch = await prepareIpoResearchDataset(false, RESEARCH_MONTHS);
         totalSaved = batch.total_dataset_rows;
         pending = batch.pending_remaining;
+        const catalog = batch.catalog_total ?? batch.with_market_data;
+        const withPrices = batch.with_market_data ?? 0;
         setPrepareMsg(
-          `Batch ${batchNum}: +${batch.newly_saved} ready · ${totalSaved} usable · ${pending} left` +
-            (batch.skipped_no_market_data ?? batch.no_market_data
-              ? ` · ${batch.skipped_no_market_data ?? batch.no_market_data} marked no Yahoo data`
-              : "") +
-            "…",
+          `Batch ${batchNum}: catalog ${catalog} IPOs · ${withPrices} with prices · ${totalSaved} ML-ready · ${pending} left…`,
         );
       }
+      const last = await fetchIpoResearchDatasetStats(RESEARCH_MONTHS).catch(() => null);
       setPrepareMsg(
         pending > 0
-          ? `Stopped after ${batchNum} batches — ${pending} still pending. ${totalSaved} usable IPOs in DB.`
-          : `Done in ${batchNum} batch(es). ${totalSaved} IPOs ready for ML.`,
+          ? `Stopped after ${batchNum} batches. ${last?.catalog_total ?? "?"} in shared DB, ${last?.with_market_data ?? "?"} with prices, ${last?.total_rows ?? totalSaved} ML-ready.`
+          : `Done. Shared catalog: ${last?.catalog_total ?? totalSaved} IPOs, ${last?.with_market_data ?? "?"} with Yahoo prices, ${last?.total_rows ?? totalSaved} ready for ML.`,
       );
       await refresh();
     } catch (err) {
@@ -147,20 +153,29 @@ export default function IpoResearchPage() {
         SENSEX), and scikit-learn. Not financial advice.
       </p>
       <p className="ipo-research-hint" style={{ marginTop: "0.5rem" }}>
-        <strong>Prepare data</strong> processes IPOs from the last 6 months only (~40 per
-        batch). Names without Yahoo prices are marked so they are not retried forever. Typical
-        result: ~35–40 usable IPOs for ML.
+        <strong>Prepare data</strong> uses the <strong>same SQLite table as IPO Tracker</strong>{" "}
+        (<code>ipo_listings</code>). Step 1: sync NSE + Yahoo prices for the last 6 months.
+        Step 2: build ML features for <em>every</em> IPO that has prices — ML-ready count should
+        match “with Yahoo prices”. IPOs with no Yahoo history (very recent listings, bad tickers)
+        cannot be trained.
       </p>
 
       <section className="ipo-research-panel">
         <h3>Dataset</h3>
         <p className="meta">
-          {stats?.total_rows ?? 0} IPOs ready for ML
-          {stats?.universe_size != null && (
-            <> · {stats.universe_size} listed in last {stats.months_back ?? 24} months</>
+          <strong>{stats?.nse_universe ?? stats?.universe_size ?? 0}</strong> NSE equity IPOs
+          (last {stats?.months_back ?? RESEARCH_MONTHS} months)
+          {stats?.with_market_data != null && (
+            <> · <strong>{stats.with_market_data}</strong> with Yahoo prices</>
+          )}
+          {stats?.total_rows != null && (
+            <> · <strong>{stats.total_rows}</strong> ML-ready</>
+          )}
+          {stats?.no_market_data != null && stats.no_market_data > 0 && (
+            <> · {stats.no_market_data} no Yahoo data</>
           )}
           {stats?.pending != null && stats.pending > 0 && (
-            <> · <strong>{stats.pending} not processed yet</strong></>
+            <> · {stats.pending} awaiting price fetch</>
           )}
           {stats?.latest_built_at && (
             <> · last built {new Date(stats.latest_built_at).toLocaleString("en-IN")}</>

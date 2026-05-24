@@ -330,7 +330,10 @@ def run_ml_experiment(
     try:
         prep_summary = None
         if prepare_data:
-            prep_summary = prepare_ipo_dataset(force_refresh=force_data_refresh)
+            prep_summary = prepare_ipo_dataset(
+                force_refresh=force_data_refresh,
+                months=6,
+            )
 
         df = load_dataset_dataframe()
         if df.empty or len(df) < 30:
