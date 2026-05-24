@@ -19,6 +19,9 @@ const TARGET_LABELS: Record<string, string> = {
 export default function IpoResearchPage() {
   const [stats, setStats] = useState<{
     total_rows: number;
+    universe_size?: number;
+    pending?: number;
+    months_back?: number;
     latest_built_at: string | null;
     ready_for_ml: boolean;
   } | null>(null);
@@ -64,26 +67,26 @@ export default function IpoResearchPage() {
     setPrepareMsg("Starting data preparation…");
     let pending = 1;
     let totalSaved = 0;
+    let batchNum = 0;
+    const maxBatches = 50;
     try {
-      while (pending > 0) {
+      while (pending > 0 && batchNum < maxBatches) {
+        batchNum += 1;
         const batch = await prepareIpoResearchDataset(false);
         totalSaved = batch.total_dataset_rows;
         pending = batch.pending_remaining;
         setPrepareMsg(
-          `Batch: +${batch.newly_saved} saved · ${totalSaved} in DB · ${pending} left` +
-            (batch.no_market_data
-              ? ` · ${batch.no_market_data} skipped (no Yahoo price — delisted/invalid)`
+          `Batch ${batchNum}: +${batch.newly_saved} ready · ${totalSaved} usable · ${pending} left` +
+            (batch.skipped_no_market_data ?? batch.no_market_data
+              ? ` · ${batch.skipped_no_market_data ?? batch.no_market_data} marked no Yahoo data`
               : "") +
             "…",
         );
-        if (batch.newly_enriched === 0 && pending > 0) {
-          break;
-        }
       }
       setPrepareMsg(
         pending > 0
-          ? `Paused with ${pending} still pending (re-run to continue). ${totalSaved} rows in DB.`
-          : `Done. ${totalSaved} IPO feature rows stored.`,
+          ? `Stopped after ${batchNum} batches — ${pending} still pending. ${totalSaved} usable IPOs in DB.`
+          : `Done in ${batchNum} batch(es). ${totalSaved} IPOs ready for ML.`,
       );
       await refresh();
     } catch (err) {
@@ -144,20 +147,26 @@ export default function IpoResearchPage() {
         SENSEX), and scikit-learn. Not financial advice.
       </p>
       <p className="ipo-research-hint" style={{ marginTop: "0.5rem" }}>
-        <strong>Prepare data:</strong> NSE lists bonds and delisted names too — yfinance may
-        log &quot;possibly delisted&quot; for those; they are skipped automatically. Only IPOs
-        with price history are saved (~37 recent names in a typical run).
+        <strong>Prepare data</strong> processes IPOs from the last 6 months only (~40 per
+        batch). Names without Yahoo prices are marked so they are not retried forever. Typical
+        result: ~35–40 usable IPOs for ML.
       </p>
 
       <section className="ipo-research-panel">
         <h3>Dataset</h3>
         <p className="meta">
-          {stats?.total_rows ?? 0} IPOs in database
+          {stats?.total_rows ?? 0} IPOs ready for ML
+          {stats?.universe_size != null && (
+            <> · {stats.universe_size} listed in last {stats.months_back ?? 24} months</>
+          )}
+          {stats?.pending != null && stats.pending > 0 && (
+            <> · <strong>{stats.pending} not processed yet</strong></>
+          )}
           {stats?.latest_built_at && (
             <> · last built {new Date(stats.latest_built_at).toLocaleString("en-IN")}</>
           )}
           {!stats?.ready_for_ml && (
-            <strong> · need ≥30 rows for ML</strong>
+            <strong> · need ≥30 ready rows</strong>
           )}
         </p>
         <div className="ipo-research-actions">

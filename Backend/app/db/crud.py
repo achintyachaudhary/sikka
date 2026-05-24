@@ -253,6 +253,7 @@ def upsert_ipo_ml_row(
     features_json: str,
     targets_json: str,
     built_at: datetime | None = None,
+    enrichment_status: str = "ready",
 ) -> IpoMlFeatureRow:
     symbol = symbol.upper()
     row = db.get(IpoMlFeatureRow, symbol)
@@ -263,6 +264,7 @@ def upsert_ipo_ml_row(
     row.company_name = company_name
     row.features_json = features_json
     row.targets_json = targets_json
+    row.enrichment_status = enrichment_status
     if built_at:
         row.built_at = built_at
     db.commit()
@@ -270,12 +272,18 @@ def upsert_ipo_ml_row(
     return row
 
 
-def list_ipo_ml_rows(db: Session) -> list[IpoMlFeatureRow]:
-    return db.query(IpoMlFeatureRow).order_by(IpoMlFeatureRow.listing_date.desc()).all()
+def list_ipo_ml_rows(db: Session, *, ready_only: bool = True) -> list[IpoMlFeatureRow]:
+    q = db.query(IpoMlFeatureRow)
+    if ready_only:
+        q = q.filter(IpoMlFeatureRow.enrichment_status == "ready")
+    return q.order_by(IpoMlFeatureRow.listing_date.desc()).all()
 
 
-def count_ipo_ml_rows(db: Session) -> int:
-    return db.query(IpoMlFeatureRow).count()
+def count_ipo_ml_rows(db: Session, *, ready_only: bool = False) -> int:
+    q = db.query(IpoMlFeatureRow)
+    if ready_only:
+        q = q.filter(IpoMlFeatureRow.enrichment_status == "ready")
+    return q.count()
 
 
 def latest_ipo_ml_built_at(db: Session) -> datetime | None:

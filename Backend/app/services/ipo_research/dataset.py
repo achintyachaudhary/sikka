@@ -21,6 +21,9 @@ from app.services.market_indices import ensure_market_indices_refreshed
 
 logger = logging.getLogger(__name__)
 
+# Recent IPOs only — reliable Yahoo data; ~70 names vs 1000+ since 2018.
+ML_MONTHS_BACK = 6
+
 
 def _subscription_features(symbol: str) -> dict[str, Any]:
     with SessionLocal() as db:
@@ -108,14 +111,17 @@ def build_row(enriched: dict) -> dict[str, Any] | None:
     }
 
 
-def count_pending_ipo_rows() -> int:
+def _ml_ipo_universe() -> list[dict]:
     raw = fetch_all_past_ipos()
-    ipo_rows = filter_all_equity_ipos(raw)
+    return filter_all_equity_ipos(raw, months_back=ML_MONTHS_BACK)
+
+
+def count_pending_ipo_rows() -> int:
+    ipo_rows = _ml_ipo_universe()
     pending = 0
     with SessionLocal() as db:
         for row in ipo_rows:
-            cached = crud.get_ipo_ml_row(db, row["symbol"])
-            if cached is None:
+            if crud.get_ipo_ml_row(db, row["symbol"]) is None:
                 pending += 1
     return pending
 
@@ -131,7 +137,7 @@ def prepare_ipo_dataset(
     """
     ensure_market_indices_refreshed()
     raw = fetch_all_past_ipos()
-    ipo_rows = filter_all_equity_ipos(raw)
+    ipo_rows = _ml_ipo_universe()
     skipped_invalid_symbols = max(0, len(raw) - len(ipo_rows))
 
     to_enrich: list[dict] = []
@@ -151,15 +157,44 @@ def prepare_ipo_dataset(
     enriched_new = enrich_ipos_parallel(to_enrich) if to_enrich else []
 
     saved = 0
-    failed = 0
+    skipped_no_data = 0
     now = datetime.now(timezone.utc)
 
     with SessionLocal() as db:
         for enriched in enriched_new:
+            symbol = enriched["symbol"]
+            listing_date = enriched["listing_date"]
+            company_name = enriched.get("company_name", "")
+
+            if enriched.get("status") == "no_market_data":
+                crud.upsert_ipo_ml_row(
+                    db,
+                    symbol=symbol,
+                    listing_date=listing_date,
+                    company_name=company_name,
+                    features_json="{}",
+                    targets_json=json.dumps({"skipped": True, "reason": "no_market_data"}),
+                    built_at=now,
+                    enrichment_status="no_market_data",
+                )
+                skipped_no_data += 1
+                continue
+
             built = build_row(enriched)
             if built is None:
-                failed += 1
+                crud.upsert_ipo_ml_row(
+                    db,
+                    symbol=symbol,
+                    listing_date=listing_date,
+                    company_name=company_name,
+                    features_json="{}",
+                    targets_json=json.dumps({"skipped": True, "reason": "incomplete"}),
+                    built_at=now,
+                    enrichment_status="incomplete",
+                )
+                skipped_no_data += 1
                 continue
+
             crud.upsert_ipo_ml_row(
                 db,
                 symbol=built["symbol"],
@@ -168,22 +203,26 @@ def prepare_ipo_dataset(
                 features_json=json.dumps(built["features"]),
                 targets_json=json.dumps(built["targets"]),
                 built_at=now,
+                enrichment_status="ready",
             )
             saved += 1
 
-    total_in_db = 0
     with SessionLocal() as db:
-        total_in_db = crud.count_ipo_ml_rows(db)
+        total_in_db = crud.count_ipo_ml_rows(db, ready_only=True)
+        total_attempted = crud.count_ipo_ml_rows(db, ready_only=False)
 
     return {
         "total_nse_ipos": len(ipo_rows),
+        "months_back": ML_MONTHS_BACK,
         "skipped_invalid_symbols": skipped_invalid_symbols,
         "newly_enriched": len(enriched_new),
         "newly_saved": saved,
         "skipped_cached": skipped_cached,
-        "failed_enrich": failed,
-        "no_market_data": sum(1 for e in enriched_new if e.get("status") == "no_market_data"),
+        "failed_enrich": 0,
+        "skipped_no_market_data": skipped_no_data,
+        "no_market_data": skipped_no_data,
         "total_dataset_rows": total_in_db,
+        "total_rows_attempted": total_attempted,
         "pending_remaining": count_pending_ipo_rows(),
     }
 
@@ -205,13 +244,17 @@ def load_dataset_dataframe():
 
 
 def dataset_stats() -> dict[str, Any]:
+    universe = len(_ml_ipo_universe())
     with SessionLocal() as db:
-        count = crud.count_ipo_ml_rows(db)
+        ready = crud.count_ipo_ml_rows(db, ready_only=True)
         latest = crud.latest_ipo_ml_built_at(db)
 
     return {
-        "total_rows": count,
+        "total_rows": ready,
+        "universe_size": universe,
+        "months_back": ML_MONTHS_BACK,
+        "pending": count_pending_ipo_rows(),
         "latest_built_at": latest.isoformat() if latest else None,
         "min_rows_for_ml": 30,
-        "ready_for_ml": count >= 30,
+        "ready_for_ml": ready >= 30,
     }

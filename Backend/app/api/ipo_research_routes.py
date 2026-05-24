@@ -19,18 +19,24 @@ ipo_research_router = APIRouter(prefix="/api/ipo-research", tags=["ipo-research"
 
 class PrepareDataResponse(BaseModel):
     total_nse_ipos: int
+    months_back: int = 6
     skipped_invalid_symbols: int = 0
     newly_enriched: int
     newly_saved: int
     skipped_cached: int
-    failed_enrich: int
+    failed_enrich: int = 0
+    skipped_no_market_data: int = 0
     no_market_data: int = 0
     total_dataset_rows: int
+    total_rows_attempted: int = 0
     pending_remaining: int
 
 
 class DatasetStatsResponse(BaseModel):
     total_rows: int
+    universe_size: int = 0
+    months_back: int = 24
+    pending: int = 0
     latest_built_at: str | None
     min_rows_for_ml: int
     ready_for_ml: bool
