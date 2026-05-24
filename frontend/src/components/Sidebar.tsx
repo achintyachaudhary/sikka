@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: "⊞", exact: true },
   { to: "/screener", label: "Screener", icon: "📊" },
   { to: "/ipo", label: "IPO Tracker", icon: "🚀" },
+  { to: "/ipo-research", label: "IPO Research", icon: "🔬" },
 ];
 
 export default function Sidebar({ theme, onToggleTheme }: SidebarProps) {

@@ -106,6 +106,44 @@ class MarketIndexCache(Base):
     )
 
 
+class IpoMlFeatureRow(Base):
+    """Per-IPO feature vector + targets for ML research."""
+
+    __tablename__ = "ipo_ml_features"
+
+    symbol: Mapped[str] = mapped_column(String, primary_key=True)
+    listing_date: Mapped[str] = mapped_column(String, nullable=False)
+    company_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    features_json: Mapped[str] = mapped_column(Text, nullable=False)
+    targets_json: Mapped[str] = mapped_column(Text, nullable=False)
+    enrichment_status: Mapped[str] = mapped_column(
+        String, default="ready"
+    )  # ready | no_market_data | incomplete
+    built_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class IpoResearchRun(Base):
+    """One ML experiment execution (scikit-learn) with stored outcomes."""
+
+    __tablename__ = "ipo_research_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    algorithm: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, default="running")  # running | completed | failed
+    params_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metrics_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    insights_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    summary_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sample_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
 class IpoLlmResearch(Base):
     """IPO subscription / issue details from LLM (Gemini, etc.)."""
 

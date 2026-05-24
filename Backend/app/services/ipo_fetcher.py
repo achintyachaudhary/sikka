@@ -25,6 +25,32 @@ CACHE_TTL = 3600  # 1 hour
 # Equity IPO series on NSE (excludes NCDs, REITs, debt, etc.)
 EQUITY_IPO_TYPES = frozenset({"EQ", "SME", "BE"})
 
+# Symbols that look like NCDs / bonds / partly-paid — not Yahoo-tradeable equity
+_BOND_LIKE_SYMBOL = re.compile(
+    r"^\d"  # starts with digit e.g. 10MWL29
+    r"|\d{2,}[A-Z]{2,}\d"  # 1275DCCL28
+    r"|ENPP|PP\d*$|MWL|NCD|DEBT|BOND",
+    re.IGNORECASE,
+)
+_VALID_EQUITY_SYMBOL = re.compile(r"^[A-Z][A-Z0-9&.-]{1,19}$")
+
+
+def is_tradeable_equity_symbol(symbol: str) -> bool:
+    """
+    NSE past-IPO feed includes debt and structured products labeled as listings.
+    Skip symbols Yahoo Finance cannot map to listed equity.
+    """
+    symbol = (symbol or "").strip().upper()
+    if not symbol or not _VALID_EQUITY_SYMBOL.match(symbol):
+        return False
+    if _BOND_LIKE_SYMBOL.search(symbol):
+        return False
+    # Require mostly letters (filters codes like '1275DCCL28')
+    letters = sum(c.isalpha() for c in symbol)
+    if letters < max(2, len(symbol) // 2):
+        return False
+    return True
+
 _memory: tuple[float, list[dict]] | None = None
 
 
@@ -108,7 +134,7 @@ def filter_recent_ipos(rows: list[dict], months: int = 2) -> list[dict]:
             continue
 
         symbol = (row.get("symbol") or "").strip().upper()
-        if not symbol:
+        if not symbol or not is_tradeable_equity_symbol(symbol):
             continue
 
         security_type = (row.get("securityType") or "").strip().upper()
@@ -136,3 +162,55 @@ def filter_recent_ipos(rows: list[dict], months: int = 2) -> list[dict]:
 
     recent.sort(key=lambda r: r["listing_date"], reverse=True)
     return recent
+
+
+def filter_all_equity_ipos(
+    rows: list[dict],
+    *,
+    min_listing_year: int = 2018,
+    max_listing_days_ago: int = 14,
+    months_back: int | None = None,
+) -> list[dict]:
+    """All equity IPOs with listing date in range (for ML / research dataset)."""
+    today = datetime.now()
+    if months_back is not None:
+        cutoff_min = today - timedelta(days=months_back * 30)
+    else:
+        cutoff_min = datetime(min_listing_year, 1, 1)
+    cutoff_max = today - timedelta(days=max_listing_days_ago)
+    out: list[dict] = []
+
+    for row in rows:
+        listing_dt = _parse_nse_date(row.get("listingDate", ""))
+        if listing_dt is None or listing_dt < cutoff_min or listing_dt > cutoff_max:
+            continue
+
+        symbol = (row.get("symbol") or "").strip().upper()
+        if not symbol or not is_tradeable_equity_symbol(symbol):
+            continue
+
+        security_type = (row.get("securityType") or "").strip().upper()
+        if security_type and security_type not in EQUITY_IPO_TYPES:
+            continue
+
+        issue_price = _parse_issue_price(
+            str(row.get("issuePrice", "")),
+            str(row.get("priceRange", "")),
+        )
+
+        out.append(
+            {
+                "symbol": symbol,
+                "company_name": row.get("companyName") or row.get("company") or symbol,
+                "security_type": security_type or row.get("securityType") or "",
+                "ipo_start_date": row.get("ipoStartDate") or "",
+                "ipo_end_date": row.get("ipoEndDate") or "",
+                "listing_date": listing_dt.strftime("%Y-%m-%d"),
+                "listing_date_display": row.get("listingDate", ""),
+                "issue_price": issue_price,
+                "price_range": row.get("priceRange") or "",
+            },
+        )
+
+    out.sort(key=lambda r: r["listing_date"], reverse=True)
+    return out

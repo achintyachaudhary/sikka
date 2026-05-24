@@ -1573,3 +1573,119 @@ tr.expand-row,
   font-size: 0.85rem;
   color: var(--muted);
 }
+
+/* ── IPO Research (ML) page ─────────────────────────────────────────────────── */
+.ipo-research-page .ipo-research-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-top: 0.75rem;
+}
+
+.ipo-research-page .ipo-research-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.ipo-research-page .ipo-research-form select {
+  min-width: 200px;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.ipo-runs-table tbody tr {
+  cursor: pointer;
+}
+
+.ipo-run-detail {
+  margin-top: 1rem;
+}
+
+.ipo-run-summary {
+  white-space: pre-wrap;
+  font-size: 0.85rem;
+  background: var(--bg);
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.ipo-experiment-block {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.ipo-experiment-block h4 {
+  margin: 0 0 0.5rem;
+  text-transform: capitalize;
+}
+
+.ipo-feature-list,
+.ipo-insight-list {
+  margin: 0.35rem 0 0 1rem;
+  font-size: 0.875rem;
+}
+
+.ipo-insight-list li {
+  margin-bottom: 0.35rem;
+}
+
+.ipo-insight-summary-cell {
+  max-width: 280px;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.ipo-plain-summary {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ipo-plain-summary h4 {
+  margin: 0 0 0.75rem;
+}
+
+.ipo-plain-lead {
+  font-size: 0.95rem;
+  margin: 0 0 0.75rem;
+  color: var(--text);
+}
+
+.ipo-plain-bottom {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+}
+
+.ipo-examples ul {
+  margin: 0.25rem 0 0.75rem 1rem;
+  font-size: 0.875rem;
+}
+
+.ipo-caveats {
+  margin: 0.75rem 0 0 1rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.ipo-technical-details {
+  margin-top: 1rem;
+}
+
+.ipo-technical-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.85rem;
+}

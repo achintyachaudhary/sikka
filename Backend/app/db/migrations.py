@@ -30,3 +30,25 @@ def migrate_ipo_llm_research() -> None:
                 "WHERE status IS NULL OR status = ''"
             )
         )
+
+
+def migrate_ipo_ml_features() -> None:
+    insp = inspect(engine)
+    if "ipo_ml_features" not in insp.get_table_names():
+        return
+
+    cols = {c["name"] for c in insp.get_columns("ipo_ml_features")}
+    with engine.begin() as conn:
+        if "enrichment_status" not in cols:
+            conn.execute(
+                text(
+                    "ALTER TABLE ipo_ml_features "
+                    "ADD COLUMN enrichment_status VARCHAR NOT NULL DEFAULT 'ready'"
+                )
+            )
+        conn.execute(
+            text(
+                "UPDATE ipo_ml_features SET enrichment_status = 'ready' "
+                "WHERE enrichment_status IS NULL OR enrichment_status = ''"
+            )
+        )

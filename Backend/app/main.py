@@ -13,13 +13,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from app.api.dashboard_routes import dashboard_router
+from app.api.ipo_research_routes import ipo_research_router
 from app.db.database import Base, engine
-from app.db.migrations import migrate_ipo_llm_research
+from app.db.migrations import migrate_ipo_llm_research, migrate_ipo_ml_features
 import app.db.models as _db_models  # noqa: F401 — register ORM tables before create_all
 from app.utils.network import configure_market_data_network
+from app.utils.yfinance_quiet import configure_yfinance_logging
 
 # Must run before any yfinance / NSE HTTP calls (Cursor sets a local proxy that blocks Yahoo).
 configure_market_data_network()
+configure_yfinance_logging()
 
 CORS_ORIGINS = os.environ.get(
     "CORS_ORIGINS",
@@ -45,7 +48,9 @@ app.add_middleware(
 def _init_db() -> None:
     Base.metadata.create_all(bind=engine)
     migrate_ipo_llm_research()
+    migrate_ipo_ml_features()
 
 
 app.include_router(router)
 app.include_router(dashboard_router)
+app.include_router(ipo_research_router)

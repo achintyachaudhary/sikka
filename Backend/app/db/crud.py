@@ -11,6 +11,8 @@ from app.db.models import (
     FinancialCache,
     HoldingsCache,
     IpoLlmResearch,
+    IpoMlFeatureRow,
+    IpoResearchRun,
     MarketIndexCache,
     StockProfile,
     UserPreferences,
@@ -235,6 +237,109 @@ def upsert_market_index(
     db.commit()
     db.refresh(row)
     return row
+
+
+# ── IpoMlFeatureRow ───────────────────────────────────────────────────────────
+
+def get_ipo_ml_row(db: Session, symbol: str) -> IpoMlFeatureRow | None:
+    return db.get(IpoMlFeatureRow, symbol.upper())
+
+
+def upsert_ipo_ml_row(
+    db: Session,
+    symbol: str,
+    listing_date: str,
+    company_name: str,
+    features_json: str,
+    targets_json: str,
+    built_at: datetime | None = None,
+) -> IpoMlFeatureRow:
+    symbol = symbol.upper()
+    row = db.get(IpoMlFeatureRow, symbol)
+    if row is None:
+        row = IpoMlFeatureRow(symbol=symbol)
+        db.add(row)
+    row.listing_date = listing_date
+    row.company_name = company_name
+    row.features_json = features_json
+    row.targets_json = targets_json
+    if built_at:
+        row.built_at = built_at
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def list_ipo_ml_rows(db: Session) -> list[IpoMlFeatureRow]:
+    return db.query(IpoMlFeatureRow).order_by(IpoMlFeatureRow.listing_date.desc()).all()
+
+
+def count_ipo_ml_rows(db: Session) -> int:
+    return db.query(IpoMlFeatureRow).count()
+
+
+def latest_ipo_ml_built_at(db: Session) -> datetime | None:
+    row = db.query(IpoMlFeatureRow).order_by(IpoMlFeatureRow.built_at.desc()).first()
+    return row.built_at if row else None
+
+
+# ── IpoResearchRun ────────────────────────────────────────────────────────────
+
+def create_ipo_research_run(
+    db: Session,
+    algorithm: str,
+    params_json: str | None = None,
+) -> IpoResearchRun:
+    run = IpoResearchRun(algorithm=algorithm, status="running", params_json=params_json)
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+def update_ipo_research_run(
+    db: Session,
+    run_id: int,
+    *,
+    status: str,
+    metrics_json: str | None = None,
+    insights_json: str | None = None,
+    summary_text: str | None = None,
+    sample_count: int | None = None,
+    error_message: str | None = None,
+) -> IpoResearchRun | None:
+    run = db.get(IpoResearchRun, run_id)
+    if run is None:
+        return None
+    run.status = status
+    if metrics_json is not None:
+        run.metrics_json = metrics_json
+    if insights_json is not None:
+        run.insights_json = insights_json
+    if summary_text is not None:
+        run.summary_text = summary_text
+    if sample_count is not None:
+        run.sample_count = sample_count
+    if error_message is not None:
+        run.error_message = error_message
+    if status in ("completed", "failed"):
+        run.completed_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+def list_ipo_research_runs(db: Session, limit: int = 50) -> list[IpoResearchRun]:
+    return (
+        db.query(IpoResearchRun)
+        .order_by(IpoResearchRun.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def get_ipo_research_run(db: Session, run_id: int) -> IpoResearchRun | None:
+    return db.get(IpoResearchRun, run_id)
 
 
 # ── IpoLlmResearch ────────────────────────────────────────────────────────────

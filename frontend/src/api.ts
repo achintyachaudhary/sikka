@@ -236,3 +236,72 @@ export async function fetchTopMovers() {
   if (!res.ok) throw new Error("Top movers failed");
   return res.json();
 }
+
+// ── IPO Research (ML) ───────────────────────────────────────────────────────
+
+export async function fetchIpoResearchDatasetStats() {
+  const res = await fetch("/api/ipo-research/dataset/stats");
+  if (!res.ok) throw new Error(`Dataset stats failed (${res.status})`);
+  return res.json();
+}
+
+export async function prepareIpoResearchDataset(force = false) {
+  const params = new URLSearchParams({ batch_size: "40" });
+  if (force) params.set("force", "true");
+  const res = await fetch(`/api/ipo-research/dataset/prepare?${params}`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      typeof body.detail === "string" ? body.detail : `Prepare failed (${res.status})`,
+    );
+  }
+  return res.json();
+}
+
+export async function fetchIpoResearchRuns() {
+  const res = await fetch("/api/ipo-research/runs");
+  if (!res.ok) throw new Error(`Runs list failed (${res.status})`);
+  return res.json() as Promise<{ runs: import("./types/ipoResearchMl").IpoResearchRun[] }>;
+}
+
+export async function fetchIpoResearchRun(id: number) {
+  const res = await fetch(`/api/ipo-research/runs/${id}`);
+  if (!res.ok) throw new Error(`Run detail failed (${res.status})`);
+  return res.json() as Promise<import("./types/ipoResearchMl").IpoResearchRun>;
+}
+
+export async function fetchIpoResearchAlgorithms() {
+  const res = await fetch("/api/ipo-research/algorithms");
+  if (!res.ok) throw new Error("Algorithms list failed");
+  return res.json() as Promise<{
+    algorithms: string[];
+    targets: { id: string; label: string }[];
+  }>;
+}
+
+export async function startIpoResearchRun(body: {
+  algorithm: string;
+  target: string;
+  prepare_data?: boolean;
+  force_data_refresh?: boolean;
+}) {
+  const res = await fetch("/api/ipo-research/runs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      algorithm: body.algorithm,
+      target: body.target,
+      prepare_data: body.prepare_data ?? false,
+      force_data_refresh: body.force_data_refresh ?? false,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      typeof err.detail === "string" ? err.detail : `ML run failed (${res.status})`,
+    );
+  }
+  return res.json() as Promise<import("./types/ipoResearchMl").IpoResearchRun>;
+}

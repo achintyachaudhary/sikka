@@ -10,12 +10,14 @@ import yfinance as yf
 
 from app.config import SCAN_MAX_WORKERS
 from app.utils.network import without_proxy
+from app.utils.yfinance_quiet import quiet_yfinance
 
 logger = logging.getLogger(__name__)
 
 
 def _yf_symbols(symbol: str) -> list[str]:
-    return [f"{symbol}.NS", f"{symbol}.BO"]
+    # NSE IPOs: try NSE only first (avoids duplicate delisted warnings for .BO)
+    return [f"{symbol}.NS"]
 
 
 def _fetch_price_history(
@@ -26,14 +28,21 @@ def _fetch_price_history(
     start = listing_date - timedelta(days=2)
     end = datetime.now() + timedelta(days=1)
 
-    for yf_symbol in _yf_symbols(symbol):
-        try:
-            with without_proxy():
-                df = yf.Ticker(yf_symbol).history(start=start, end=end, auto_adjust=True)
-        except Exception:
-            continue
-        if df is not None and not df.empty:
-            return yf_symbol, df
+    symbols = _yf_symbols(symbol)
+    # Fallback to BSE only if NSE has no data
+    symbols.append(f"{symbol}.BO")
+
+    with quiet_yfinance():
+        for yf_symbol in symbols:
+            try:
+                with without_proxy():
+                    df = yf.Ticker(yf_symbol).history(
+                        start=start, end=end, auto_adjust=True, raise_errors=False
+                    )
+            except Exception:
+                continue
+            if df is not None and not df.empty:
+                return yf_symbol, df
     return None, None
 
 
