@@ -1,3 +1,4 @@
+import type { ChartResponse, ChartTimeframe } from "./types/chart";
 import type { IndicesResponse, IpoTrackResponse, ScanResponse, StockInsightsResponse } from "./types";
 
 export async function fetchIndices(): Promise<IndicesResponse> {
@@ -48,6 +49,23 @@ export async function fetchIpos(
     throw new Error(`IPO fetch failed (${res.status})`);
   }
   return res.json() as Promise<IpoTrackResponse>;
+}
+
+export async function fetchStockChart(
+  symbol: string,
+  timeframe: ChartTimeframe,
+): Promise<ChartResponse> {
+  const encoded = encodeURIComponent(symbol);
+  const res = await fetch(`/api/stock/${encoded}/chart?timeframe=${timeframe}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const detail =
+      typeof body.detail === "string"
+        ? body.detail
+        : `Chart fetch failed (${res.status})`;
+    throw new Error(detail);
+  }
+  return res.json() as Promise<ChartResponse>;
 }
 
 export async function fetchStockInsights(

@@ -3,6 +3,7 @@ import { fetchStockInsights, refreshStockData } from "../api";
 import type { StockInsightsResponse } from "../types";
 import FinancialChart from "./FinancialChart";
 import ShareholdingChart from "./ShareholdingChart";
+import StockChartPanel from "./StockChartPanel";
 
 function fmtCapCr(v: number | null): string {
   if (v == null) return "—";
@@ -102,6 +103,8 @@ export default function StockDetailContent({
         </button>
         {error && <span style={{ color: "var(--red)" }}>{error}</span>}
       </div>
+
+      <StockChartPanel symbol={symbol} yfSymbol={yfSymbol} />
 
       <div className="detail-meta">
         <div className="detail-meta-row">

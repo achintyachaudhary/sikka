@@ -7,14 +7,17 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.config import CACHE_TTL_SECONDS, DEFAULT_MIN_SCORE, DEFAULT_SCAN_LIMIT
 from app.models import (
+    ChartResponse,
     HealthResponse,
     IndicesResponse,
     IndexOption,
     IpoTrackResponse,
+    OhlcBar,
     ScanResponse,
     StockDetail,
     StockInsightsResponse,
 )
+from app.services.chart_data import VALID_TIMEFRAMES, fetch_chart_bars
 from app.services.ipo_tracker import track_recent_ipos
 from app.services.screener import analyze_symbol_detail, run_scan
 from app.services.stock_insights import get_stock_insights
@@ -113,6 +116,25 @@ def ipo_tracker(
     refresh: bool = Query(False, description="Bypass cache"),
 ) -> IpoTrackResponse:
     return track_recent_ipos(months=months, refresh=refresh)
+
+
+@router.get("/api/stock/{symbol}/chart", response_model=ChartResponse)
+def stock_chart(
+    symbol: str,
+    timeframe: str = Query("1M", description="1D, 1W, 1M, 3M, 6M, 1Y, 5Y"),
+) -> ChartResponse:
+    tf = timeframe.upper()
+    if tf not in VALID_TIMEFRAMES:
+        valid = ", ".join(sorted(VALID_TIMEFRAMES))
+        raise HTTPException(status_code=400, detail=f"Invalid timeframe '{timeframe}'. Use: {valid}")
+    raw = fetch_chart_bars(symbol, tf)
+    return ChartResponse(
+        symbol=raw["symbol"],
+        timeframe=raw["timeframe"],
+        interval=raw["interval"],
+        tv_interval=raw["tv_interval"],
+        bars=[OhlcBar(**b) for b in raw["bars"]],
+    )
 
 
 @router.get("/api/stock/{symbol}/insights", response_model=StockInsightsResponse)

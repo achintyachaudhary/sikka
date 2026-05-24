@@ -37,6 +37,23 @@ class PriceBar(BaseModel):
     close: float
 
 
+class OhlcBar(BaseModel):
+    time: str | int
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int | None = None
+
+
+class ChartResponse(BaseModel):
+    symbol: str
+    timeframe: str
+    interval: str
+    tv_interval: str
+    bars: list[OhlcBar] = Field(default_factory=list)
+
+
 class StockDetail(StockSignal):
     history: list[PriceBar] = Field(default_factory=list)
 
