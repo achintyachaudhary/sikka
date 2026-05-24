@@ -211,6 +211,26 @@ export async function fetchIndexSummary() {
   return res.json();
 }
 
+export async function fetchMarketIndices(refresh = false) {
+  const params = refresh ? "?refresh=true" : "";
+  const res = await fetch(`/api/market-indices${params}`);
+  if (!res.ok) throw new Error(`Market indices failed (${res.status})`);
+  return res.json();
+}
+
+export async function fetchMarketIndexChart(indexId: string) {
+  const res = await fetch(`/api/market-indices/${encodeURIComponent(indexId)}/chart`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const detail =
+      typeof body.detail === "string"
+        ? body.detail
+        : `Index chart failed (${res.status})`;
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
 export async function fetchTopMovers() {
   const res = await fetch("/api/widgets/top-movers");
   if (!res.ok) throw new Error("Top movers failed");

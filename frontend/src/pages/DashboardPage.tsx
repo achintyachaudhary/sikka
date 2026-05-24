@@ -4,6 +4,7 @@ import {
   saveDashboardLayout,
   type WidgetItem,
 } from "../api";
+import MarketIndexTicker from "../components/MarketIndexTicker";
 import WidgetPicker from "../components/WidgetPicker";
 import BullishStocksWidget from "../components/widgets/BullishStocksWidget";
 import RecentIPOsWidget from "../components/widgets/RecentIPOsWidget";
@@ -111,9 +112,12 @@ export default function DashboardPage() {
             {saving && <span style={{ marginLeft: "0.5rem", color: "var(--muted)" }}>• saving…</span>}
           </p>
         </div>
-        <button type="button" onClick={() => setPickerOpen(true)}>
-          + Add Widget
-        </button>
+        <div className="dashboard-toolbar-right">
+          <MarketIndexTicker />
+          <button type="button" onClick={() => setPickerOpen(true)}>
+            + Add Widget
+          </button>
+        </div>
       </div>
 
       {loading ? (

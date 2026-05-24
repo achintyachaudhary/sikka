@@ -3,8 +3,8 @@
 import time
 from typing import Any
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -27,6 +27,29 @@ class LayoutPayload(BaseModel):
 
 class PreferencesPayload(BaseModel):
     preferences: dict[str, str]
+
+
+class MarketIndexQuote(BaseModel):
+    index_id: str
+    display_name: str
+    yf_symbol: str
+    last_value: float | None = None
+    change_abs: float | None = None
+    change_pct: float | None = None
+    updated_at: str | None = None
+
+
+class MarketIndicesResponse(BaseModel):
+    indices: list[MarketIndexQuote]
+
+
+class MarketIndexChartResponse(BaseModel):
+    index_id: str
+    display_name: str
+    yf_symbol: str
+    timeframe: str
+    interval: str
+    bars: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # ── In-memory cache for widget data (avoids re-scanning on every dashboard load) ─
@@ -75,6 +98,37 @@ def update_preferences(
 
 
 # ── Widget data endpoints ─────────────────────────────────────────────────────
+
+@dashboard_router.get("/market-indices", response_model=MarketIndicesResponse)
+def market_indices(
+    refresh: bool = Query(False, description="Force refresh from yfinance"),
+) -> MarketIndicesResponse:
+    from app.services.market_indices import ensure_market_indices_refreshed, list_market_indices
+
+    if refresh:
+        ensure_market_indices_refreshed(force=True)
+    indices = list_market_indices(refresh_if_stale=not refresh)
+    return MarketIndicesResponse(indices=[MarketIndexQuote(**i) for i in indices])
+
+
+@dashboard_router.get("/market-indices/{index_id}/chart", response_model=MarketIndexChartResponse)
+def market_index_chart(index_id: str) -> MarketIndexChartResponse:
+    from app.services.market_indices import get_market_index_chart
+
+    try:
+        raw = get_market_index_chart(index_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return MarketIndexChartResponse(**raw)
+
+
+@dashboard_router.post("/market-indices/refresh")
+def market_indices_refresh() -> dict[str, str]:
+    from app.services.market_indices import ensure_market_indices_refreshed
+
+    ensure_market_indices_refreshed(force=True)
+    return {"status": "ok"}
+
 
 @dashboard_router.get("/widgets/index-summary")
 def index_summary() -> dict[str, Any]:

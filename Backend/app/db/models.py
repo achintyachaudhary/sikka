@@ -86,6 +86,26 @@ class DashboardWidget(Base):
     config_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class MarketIndexCache(Base):
+    """Cached quote + 1Y daily bars for NIFTY / BANKNIFTY / SENSEX."""
+
+    __tablename__ = "market_index_cache"
+
+    index_id: Mapped[str] = mapped_column(String, primary_key=True)
+    display_name: Mapped[str] = mapped_column(String, nullable=False)
+    yf_symbol: Mapped[str] = mapped_column(String, nullable=False)
+    last_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    change_abs: Mapped[float | None] = mapped_column(Float, nullable=True)
+    change_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bars_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    quote_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    bars_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
 class IpoLlmResearch(Base):
     """IPO subscription / issue details from LLM (Gemini, etc.)."""
 

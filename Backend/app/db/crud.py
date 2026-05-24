@@ -11,6 +11,7 @@ from app.db.models import (
     FinancialCache,
     HoldingsCache,
     IpoLlmResearch,
+    MarketIndexCache,
     StockProfile,
     UserPreferences,
 )
@@ -198,6 +199,42 @@ def list_widgets(db: Session) -> list[dict[str, Any]]:
         }
         for r in rows
     ]
+
+
+# ── MarketIndexCache ──────────────────────────────────────────────────────────
+
+def get_market_index(db: Session, index_id: str) -> MarketIndexCache | None:
+    return db.get(MarketIndexCache, index_id.lower())
+
+
+def upsert_market_index(
+    db: Session,
+    index_id: str,
+    display_name: str,
+    yf_symbol: str,
+    last_value: float,
+    change_abs: float,
+    change_pct: float,
+    bars_json: str,
+    quote_updated_at: datetime,
+    bars_updated_at: datetime,
+) -> MarketIndexCache:
+    index_id = index_id.lower()
+    row = db.get(MarketIndexCache, index_id)
+    if row is None:
+        row = MarketIndexCache(index_id=index_id)
+        db.add(row)
+    row.display_name = display_name
+    row.yf_symbol = yf_symbol
+    row.last_value = last_value
+    row.change_abs = change_abs
+    row.change_pct = change_pct
+    row.bars_json = bars_json
+    row.quote_updated_at = quote_updated_at
+    row.bars_updated_at = bars_updated_at
+    db.commit()
+    db.refresh(row)
+    return row
 
 
 # ── IpoLlmResearch ────────────────────────────────────────────────────────────
