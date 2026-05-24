@@ -3,6 +3,7 @@ import { useTableSort } from "../hooks/useTableSort";
 import type { IpoListing } from "../types";
 import HoldingPct from "./HoldingPct";
 import SortableTh from "./SortableTh";
+import SymbolLink from "./SymbolLink";
 
 function fmtNum(v: number | null, digits = 2): string {
   if (v == null) return "—";
@@ -185,7 +186,7 @@ export default function IpoTable({ rows }: IpoTableProps) {
             return (
               <tr key={`${row.symbol}-${row.listing_date}`} className={rowClass}>
                 <td>
-                  <strong>{row.symbol}</strong>
+                  <SymbolLink symbol={row.symbol} yfSymbol={row.yf_symbol} />
                 </td>
                 <td className="company-cell" title={row.company_name}>
                   {row.company_name}

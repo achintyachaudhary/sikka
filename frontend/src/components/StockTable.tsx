@@ -3,6 +3,7 @@ import { useTableSort } from "../hooks/useTableSort";
 import type { StockSignal } from "../types";
 import HoldingPct from "./HoldingPct";
 import SortableTh from "./SortableTh";
+import SymbolLink from "./SymbolLink";
 
 function fmtNum(v: number | null, digits = 2): string {
   if (v == null) return "—";
@@ -208,7 +209,7 @@ export default function StockTable({ rows }: StockTableProps) {
             return (
               <tr key={row.symbol} className={rowClass}>
                 <td>
-                  <strong>{row.symbol.replace(".NS", "")}</strong>
+                  <SymbolLink symbol={row.symbol} />
                 </td>
                 <td>₹{fmtNum(row.price)}</td>
                 <td>{fmtNum(row.rsi)}</td>
