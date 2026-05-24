@@ -6,7 +6,15 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 from app.config import CACHE_TTL_SECONDS, DEFAULT_MIN_SCORE, DEFAULT_SCAN_LIMIT
-from app.models import HealthResponse, IndicesResponse, IndexOption, ScanResponse, StockDetail
+from app.models import (
+    HealthResponse,
+    IndicesResponse,
+    IndexOption,
+    IpoTrackResponse,
+    ScanResponse,
+    StockDetail,
+)
+from app.services.ipo_tracker import track_recent_ipos
 from app.services.screener import analyze_symbol_detail, run_scan
 from app.watchlists.indices import IndexId, get_index_options
 from app.watchlists.loader import get_watchlist_count
@@ -95,6 +103,14 @@ def scan(
     if refresh:
         _scan_cache["expires_at"] = 0
     return _get_cached_scan(min_score=min_score, limit=limit, index=index_id)
+
+
+@router.get("/api/ipo", response_model=IpoTrackResponse)
+def ipo_tracker(
+    months: int = Query(2, ge=1, le=2, description="Look back 1 or 2 months"),
+    refresh: bool = Query(False, description="Bypass cache"),
+) -> IpoTrackResponse:
+    return track_recent_ipos(months=months, refresh=refresh)
 
 
 @router.get("/api/stock/{symbol}", response_model=StockDetail)

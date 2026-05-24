@@ -59,6 +59,7 @@ The Vite dev server proxies `/api` and `/health` to the backend.
 | `GET /api/indices` | Available watchlists (Nifty 50/100/200/500, all NSE EQ) |
 | `GET /api/scan?index=nifty50&min_score=5&limit=100` | Scan selected index for bullish stocks |
 | `GET /api/stock/{symbol}` | Single stock detail (e.g. `RELIANCE.NS`) |
+| `GET /api/ipo?months=2` | Recent IPO listings (1–2 months) with listing performance |
 
 ## Configuration
 

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useTableSort } from "../hooks/useTableSort";
-import type { StockSignal } from "../types";
+import type { IpoListing } from "../types";
 import HoldingPct from "./HoldingPct";
 import SortableTh from "./SortableTh";
 
@@ -21,37 +21,33 @@ function PctCell({ value }: { value: number | null }) {
   );
 }
 
-function formatLabel(s: string): string {
-  return s.replace(/_/g, " ");
+interface IpoTableProps {
+  rows: IpoListing[];
 }
 
-interface StockTableProps {
-  rows: StockSignal[];
-}
-
-export default function StockTable({ rows }: StockTableProps) {
-  const getValue = useCallback((row: StockSignal, key: string) => {
+export default function IpoTable({ rows }: IpoTableProps) {
+  const getValue = useCallback((row: IpoListing, key: string) => {
     switch (key) {
       case "symbol":
-        return row.symbol.replace(".NS", "");
-      case "price":
-        return row.price;
-      case "rsi":
-        return row.rsi;
-      case "macd":
-        return row.macd;
-      case "macd_signal":
-        return row.macd_signal;
-      case "sma_20":
-        return row.sma_20;
-      case "sma_50":
-        return row.sma_50;
-      case "change_5d_pct":
-        return row.change_5d_pct;
-      case "change_20d_pct":
-        return row.change_20d_pct;
-      case "score":
-        return row.score;
+        return row.symbol;
+      case "company_name":
+        return row.company_name;
+      case "security_type":
+        return row.security_type;
+      case "listing_date":
+        return row.listing_date;
+      case "issue_price":
+        return row.issue_price;
+      case "listing_close":
+        return row.listing_close;
+      case "current_price":
+        return row.current_price;
+      case "listing_day_gain_pct":
+        return row.listing_day_gain_pct;
+      case "gain_vs_issue_pct":
+        return row.gain_vs_issue_pct;
+      case "gain_vs_listing_close_pct":
+        return row.gain_vs_listing_close_pct;
       case "promoter_holding_pct":
         return row.promoter_holding_pct;
       case "fii_holding_pct":
@@ -60,10 +56,6 @@ export default function StockTable({ rows }: StockTableProps) {
         return row.dii_holding_pct;
       case "public_holding_pct":
         return row.public_holding_pct;
-      case "institutional_holding_pct":
-        return row.institutional_holding_pct;
-      case "signals":
-        return row.signals.length;
       default:
         return null;
     }
@@ -71,7 +63,7 @@ export default function StockTable({ rows }: StockTableProps) {
 
   const { sortedRows, sortKey, sortDir, toggleSort } = useTableSort(
     rows,
-    "score",
+    "listing_date",
     "desc",
     getValue,
   );
@@ -89,64 +81,64 @@ export default function StockTable({ rows }: StockTableProps) {
               onSort={toggleSort}
             />
             <SortableTh
-              label="Price"
-              sortKey="price"
+              label="Company"
+              sortKey="company_name"
               activeKey={sortKey}
               direction={sortDir}
               onSort={toggleSort}
             />
             <SortableTh
-              label="RSI"
-              sortKey="rsi"
+              label="Type"
+              sortKey="security_type"
               activeKey={sortKey}
               direction={sortDir}
               onSort={toggleSort}
             />
             <SortableTh
-              label="MACD"
-              sortKey="macd"
+              label="Listed"
+              sortKey="listing_date"
               activeKey={sortKey}
               direction={sortDir}
               onSort={toggleSort}
             />
             <SortableTh
-              label="Signal"
-              sortKey="macd_signal"
+              label="Issue ₹"
+              sortKey="issue_price"
               activeKey={sortKey}
               direction={sortDir}
               onSort={toggleSort}
             />
             <SortableTh
-              label="SMA 20"
-              sortKey="sma_20"
+              label="List close ₹"
+              sortKey="listing_close"
               activeKey={sortKey}
               direction={sortDir}
               onSort={toggleSort}
             />
             <SortableTh
-              label="SMA 50"
-              sortKey="sma_50"
+              label="Current ₹"
+              sortKey="current_price"
               activeKey={sortKey}
               direction={sortDir}
               onSort={toggleSort}
             />
             <SortableTh
-              label="5d %"
-              sortKey="change_5d_pct"
+              label="Day-1 %"
+              sortKey="listing_day_gain_pct"
               activeKey={sortKey}
               direction={sortDir}
               onSort={toggleSort}
             />
             <SortableTh
-              label="20d %"
-              sortKey="change_20d_pct"
+              label="vs Issue %"
+              sortKey="gain_vs_issue_pct"
               activeKey={sortKey}
               direction={sortDir}
               onSort={toggleSort}
             />
             <SortableTh
-              label="Score"
-              sortKey="score"
+              label="vs List close %"
+              sortKey="gain_vs_listing_close_pct"
               activeKey={sortKey}
               direction={sortDir}
               onSort={toggleSort}
@@ -179,51 +171,38 @@ export default function StockTable({ rows }: StockTableProps) {
               direction={sortDir}
               onSort={toggleSort}
             />
-            <SortableTh
-              label="Inst. %"
-              sortKey="institutional_holding_pct"
-              activeKey={sortKey}
-              direction={sortDir}
-              onSort={toggleSort}
-            />
-            <SortableTh
-              label="Signals"
-              sortKey="signals"
-              activeKey={sortKey}
-              direction={sortDir}
-              onSort={toggleSort}
-            />
           </tr>
         </thead>
         <tbody>
           {sortedRows.map((row) => {
-            const overbought = row.warnings.includes("rsi_overbought");
-            const rowClass = overbought
-              ? "overbought"
-              : row.trend === "up"
+            const noData = row.status === "no_market_data";
+            const rowClass = noData
+              ? ""
+              : (row.gain_vs_issue_pct ?? 0) >= 0
                 ? "bullish"
-                : "";
-            const scoreClass = row.score >= 7 ? "score high" : "score";
+                : "overbought";
 
             return (
-              <tr key={row.symbol} className={rowClass}>
+              <tr key={`${row.symbol}-${row.listing_date}`} className={rowClass}>
                 <td>
-                  <strong>{row.symbol.replace(".NS", "")}</strong>
+                  <strong>{row.symbol}</strong>
                 </td>
-                <td>₹{fmtNum(row.price)}</td>
-                <td>{fmtNum(row.rsi)}</td>
-                <td>{fmtNum(row.macd, 4)}</td>
-                <td>{fmtNum(row.macd_signal, 4)}</td>
-                <td>{fmtNum(row.sma_20)}</td>
-                <td>{fmtNum(row.sma_50)}</td>
+                <td className="company-cell" title={row.company_name}>
+                  {row.company_name}
+                </td>
+                <td>{row.security_type || "—"}</td>
+                <td>{row.listing_date_display || row.listing_date}</td>
+                <td>{fmtNum(row.issue_price)}</td>
+                <td>{fmtNum(row.listing_close)}</td>
+                <td>{fmtNum(row.current_price)}</td>
                 <td>
-                  <PctCell value={row.change_5d_pct} />
+                  <PctCell value={row.listing_day_gain_pct} />
                 </td>
                 <td>
-                  <PctCell value={row.change_20d_pct} />
+                  <PctCell value={row.gain_vs_issue_pct} />
                 </td>
                 <td>
-                  <span className={scoreClass}>{row.score}</span>
+                  <PctCell value={row.gain_vs_listing_close_pct} />
                 </td>
                 <td>
                   <HoldingPct value={row.promoter_holding_pct} />
@@ -236,23 +215,6 @@ export default function StockTable({ rows }: StockTableProps) {
                 </td>
                 <td>
                   <HoldingPct value={row.public_holding_pct} />
-                </td>
-                <td>
-                  <HoldingPct value={row.institutional_holding_pct} />
-                </td>
-                <td>
-                  <div className="tags">
-                    {row.signals.map((s) => (
-                      <span key={s} className="tag">
-                        {formatLabel(s)}
-                      </span>
-                    ))}
-                    {row.warnings.map((w) => (
-                      <span key={w} className="tag warn">
-                        {formatLabel(w)}
-                      </span>
-                    ))}
-                  </div>
                 </td>
               </tr>
             );
