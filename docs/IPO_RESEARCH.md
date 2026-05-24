@@ -9,7 +9,8 @@ This document describes the **IPO Research** feature: building a historical IPO 
 | **1. Prepare data** | Fetches **investor subscription times** (Gemini → `ipo_llm_research`), syncs Yahoo prices into **`ipo_listings`** (shared with IPO Tracker), then builds ML rows including subscription features. |
 | **2. Market indices** | NIFTY, BANKNIFTY, SENSEX **1Y daily bars** in `market_index_cache` (used for returns & technicals before each listing). |
 | **3. ML runs** | scikit-learn classifiers predict whether a defined “profit” target would have been met; feature importance and rule-based insights are saved per run. |
-| **4. UI** | **IPO Research** tab: prepare data, run algorithms, view run history and outcomes. |
+| **4. Portfolio sim** | If you invested ₹1 lakh in each IPO: total P&amp;L and portfolio ROI per scenario (issue→close, issue→today, etc.). |
+| **5. UI** | **IPO Research** tab: prepare data, portfolio simulation, run algorithms, view run history. |
 
 ## Data sources
 
@@ -92,6 +93,7 @@ Legacy `ipo_ml_features` is migrated into `ipo_listings` on startup.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/ipo-research/dataset/stats` | Row counts, ready-for-ML flag |
+| `GET` | `/api/ipo-research/portfolio-simulation?months=6&investment_inr=100000` | ₹1L-per-IPO ROI across entry/exit scenarios |
 | `POST` | `/api/ipo-research/dataset/prepare?batch_size=40` | Enrich next batch (call until `pending_remaining` is 0) |
 | `GET` | `/api/ipo-research/runs` | List past ML runs |
 | `GET` | `/api/ipo-research/runs/{id}` | Run detail |

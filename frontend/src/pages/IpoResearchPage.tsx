@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  fetchIpoPortfolioSimulation,
   fetchIpoResearchAlgorithms,
   fetchIpoResearchRun,
   fetchIpoResearchRuns,
@@ -7,6 +8,8 @@ import {
   prepareIpoResearchDataset,
   startIpoResearchRun,
 } from "../api";
+import IpoPortfolioSimulationPanel from "../components/IpoPortfolioSimulation";
+import type { IpoPortfolioSimulation } from "../types/ipoPortfolio";
 import type { IpoResearchRun } from "../types/ipoResearchMl";
 
 const TARGET_LABELS: Record<string, string> = {
@@ -47,23 +50,30 @@ export default function IpoResearchPage() {
   const [running, setRunning] = useState(false);
   const [runMsg, setRunMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [portfolio, setPortfolio] = useState<IpoPortfolioSimulation | null>(null);
+  const [portfolioLoading, setPortfolioLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    setPortfolioLoading(true);
     try {
-      const [s, r, a] = await Promise.all([
+      const [s, r, a, p] = await Promise.all([
         fetchIpoResearchDatasetStats(RESEARCH_MONTHS),
         fetchIpoResearchRuns(),
         fetchIpoResearchAlgorithms(),
+        fetchIpoPortfolioSimulation(RESEARCH_MONTHS).catch(() => null),
       ]);
       setStats(s);
       setRuns(r.runs);
       setAlgorithms(a.algorithms);
       setTargets(a.targets);
+      setPortfolio(p);
     } catch {
       setStats(null);
       setRuns([]);
+      setPortfolio(null);
     } finally {
       setLoading(false);
+      setPortfolioLoading(false);
     }
   }, []);
 
@@ -205,6 +215,8 @@ export default function IpoResearchPage() {
         </div>
         {prepareMsg && <p className="ipo-fetch-toast">{prepareMsg}</p>}
       </section>
+
+      <IpoPortfolioSimulationPanel data={portfolio} loading={portfolioLoading} />
 
       <section className="ipo-research-panel">
         <h3>Run ML experiment</h3>

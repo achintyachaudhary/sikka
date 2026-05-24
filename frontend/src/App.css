@@ -1450,6 +1450,76 @@ tr.expand-row,
   font-size: 0.875rem;
 }
 
+.ipo-portfolio-panel .ipo-portfolio-disclaimer {
+  margin: 0.5rem 0 1rem;
+}
+
+.ipo-portfolio-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.ipo-portfolio-card {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.ipo-portfolio-card-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ipo-portfolio-card-meta {
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.ipo-portfolio-roi {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.ipo-portfolio-profit {
+  margin: 0.15rem 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.ipo-profit-positive {
+  color: #16a34a;
+}
+
+.ipo-profit-negative {
+  color: #dc2626;
+}
+
+.ipo-portfolio-details {
+  margin-top: 0.5rem;
+}
+
+.ipo-portfolio-details summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.ipo-portfolio-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+
+.ipo-portfolio-table td {
+  white-space: nowrap;
+}
+
 .ipo-label {
   display: block;
   font-size: 0.7rem;
