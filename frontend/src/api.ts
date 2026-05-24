@@ -60,3 +60,52 @@ export async function fetchStockInsights(
   }
   return res.json() as Promise<StockInsightsResponse>;
 }
+
+export async function refreshStockData(
+  symbol: string,
+): Promise<StockInsightsResponse> {
+  const encoded = encodeURIComponent(symbol);
+  const res = await fetch(`/api/refresh/stock/${encoded}`, { method: "POST" });
+  if (!res.ok) {
+    throw new Error(`Refresh failed (${res.status})`);
+  }
+  return res.json() as Promise<StockInsightsResponse>;
+}
+
+export interface WidgetItem {
+  widget_type: string;
+  size: "sm" | "md" | "lg";
+  position: number;
+  config: Record<string, unknown>;
+}
+
+export interface DashboardLayout {
+  widgets: (WidgetItem & { id?: number })[];
+}
+
+export async function fetchDashboardLayout(): Promise<DashboardLayout> {
+  const res = await fetch("/api/dashboard/layout");
+  if (!res.ok) throw new Error(`Layout fetch failed (${res.status})`);
+  return res.json() as Promise<DashboardLayout>;
+}
+
+export async function saveDashboardLayout(widgets: WidgetItem[]): Promise<void> {
+  const res = await fetch("/api/dashboard/layout", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ widgets }),
+  });
+  if (!res.ok) throw new Error(`Layout save failed (${res.status})`);
+}
+
+export async function fetchIndexSummary() {
+  const res = await fetch("/api/widgets/index-summary");
+  if (!res.ok) throw new Error("Index summary failed");
+  return res.json();
+}
+
+export async function fetchTopMovers() {
+  const res = await fetch("/api/widgets/top-movers");
+  if (!res.ok) throw new Error("Top movers failed");
+  return res.json();
+}

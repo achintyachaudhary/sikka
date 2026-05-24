@@ -11,6 +11,7 @@ from pathlib import Path
 
 import requests
 
+from app.utils.network import make_requests_session
 from app.watchlists.loader import NSE_HEADERS
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ _memory: tuple[float, list[dict]] | None = None
 
 
 def _nse_session() -> requests.Session:
-    session = requests.Session()
+    session = make_requests_session()
     session.headers.update(NSE_HEADERS)
     session.get("https://www.nseindia.com", timeout=15)
     return session

@@ -12,6 +12,7 @@ from pathlib import Path
 import requests
 
 from app.config import NIFTY_50_TICKERS
+from app.utils.network import make_requests_session
 from app.watchlists.indices import INDEX_META, IndexId
 
 logger = logging.getLogger(__name__)
@@ -87,13 +88,13 @@ def _write_disk_cache(index_id: IndexId, symbols: list[str]) -> None:
 
 def _fetch_index_csv(filename: str) -> list[str]:
     url = f"{INDICES_BASE}{filename}"
-    response = requests.get(url, headers=NSE_HEADERS, timeout=30)
+    response = make_requests_session().get(url, headers=NSE_HEADERS, timeout=30)
     response.raise_for_status()
     return _parse_index_csv(response.text)
 
 
 def _fetch_all_nse_equity() -> list[str]:
-    response = requests.get(EQUITY_LIST_URL, headers=NSE_HEADERS, timeout=60)
+    response = make_requests_session().get(EQUITY_LIST_URL, headers=NSE_HEADERS, timeout=60)
     response.raise_for_status()
     return _parse_equity_csv(response.text)
 

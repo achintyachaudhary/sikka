@@ -19,6 +19,9 @@ from app.watchlists.loader import get_watchlist
 from app.models import ScanResponse, StockDetail, StockSignal
 from app.services.fetcher import fetch_history
 from app.services.indicators import add_indicators, pct_change
+from app.services.scoring import compute_overall_score
+from app.db.database import SessionLocal
+from app.db import crud
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +90,21 @@ def _evaluate_row(df: pd.DataFrame, symbol: str) -> StockSignal | None:
 
     trend = "up" if score >= DEFAULT_MIN_SCORE else "neutral"
 
+    # Fetch retail_pct from DB (populated when insights modal is opened)
+    overall_score: float | None = None
+    try:
+        with SessionLocal() as db:
+            prow = crud.get_profile(db, symbol)
+            if prow is not None and prow.overall_score is not None:
+                overall_score = prow.overall_score
+            else:
+                hrow = crud.get_holdings(db, symbol)
+                retail_pct = hrow.retail_pct if hrow else None
+                overall_score = compute_overall_score(score, retail_pct)
+                crud.upsert_profile(db, symbol, {"overall_score": overall_score})
+    except Exception:
+        pass
+
     return StockSignal(
         symbol=symbol,
         price=round(close, 2),
@@ -99,6 +117,7 @@ def _evaluate_row(df: pd.DataFrame, symbol: str) -> StockSignal | None:
         sma_20=round(sma_20, 2) if sma_20 is not None else None,
         sma_50=round(sma_50, 2) if sma_50 is not None else None,
         score=score,
+        overall_score=overall_score,
         signals=signals,
         warnings=warnings,
         trend=trend,

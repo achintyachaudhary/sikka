@@ -26,6 +26,7 @@ class StockSignal(BaseModel):
     sma_20: float | None = None
     sma_50: float | None = None
     score: int
+    overall_score: float | None = None
     signals: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     trend: str = "neutral"
@@ -72,6 +73,7 @@ class StockInsightsResponse(BaseModel):
     industry: str | None = None
     market_cap_cr: float | None = None
     market_cap_category: str | None = None
+    overall_score: float | None = None
     shareholding: list[ShareholdingPeriod] = Field(default_factory=list)
     financials_quarterly: list[FinancialPeriod] = Field(default_factory=list)
     financials_yearly: list[FinancialPeriod] = Field(default_factory=list)
@@ -79,6 +81,9 @@ class StockInsightsResponse(BaseModel):
     revenue_cagr_3y_pct: float | None = None
     profit_growth_yoy_pct: float | None = None
     profit_cagr_3y_pct: float | None = None
+    last_profile_updated: str | None = None
+    last_holdings_updated: str | None = None
+    last_financials_updated: str | None = None
 
 
 class ScanResponse(BaseModel):

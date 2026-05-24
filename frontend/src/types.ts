@@ -1,3 +1,5 @@
+export type Theme = "light" | "dark";
+
 export interface StockSignal {
   symbol: string;
   price: number;
@@ -10,9 +12,18 @@ export interface StockSignal {
   sma_20: number | null;
   sma_50: number | null;
   score: number;
+  overall_score: number | null;
   signals: string[];
   warnings: string[];
   trend: string;
+}
+
+export interface WidgetConfig {
+  id?: number;
+  widget_type: string;
+  size: "sm" | "md" | "lg";
+  position: number;
+  config: Record<string, unknown>;
 }
 
 export interface ScanResponse {

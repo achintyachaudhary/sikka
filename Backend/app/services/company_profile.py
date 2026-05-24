@@ -6,6 +6,8 @@ import logging
 
 import yfinance as yf
 
+from app.utils.network import without_proxy
+
 logger = logging.getLogger(__name__)
 
 # NSE-style market cap buckets (₹ Cr)
@@ -46,7 +48,8 @@ def get_company_profile(symbol: str) -> dict:
         "market_cap_category": None,
     }
     try:
-        info = yf.Ticker(yf_sym).info
+        with without_proxy():
+            info = yf.Ticker(yf_sym).info
         out["company_name"] = info.get("longName") or info.get("shortName")
         out["sector"] = info.get("sector")
         out["industry"] = info.get("industry")

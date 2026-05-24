@@ -23,6 +23,7 @@ export interface StockInsightsResponse {
   industry: string | null;
   market_cap_cr: number | null;
   market_cap_category: string | null;
+  overall_score: number | null;
   shareholding: ShareholdingPeriod[];
   financials_quarterly: FinancialPeriod[];
   financials_yearly: FinancialPeriod[];
@@ -30,6 +31,9 @@ export interface StockInsightsResponse {
   revenue_cagr_3y_pct: number | null;
   profit_growth_yoy_pct: number | null;
   profit_cagr_3y_pct: number | null;
+  last_profile_updated: string | null;
+  last_holdings_updated: string | null;
+  last_financials_updated: string | null;
 }
 
 export interface SelectedStock {

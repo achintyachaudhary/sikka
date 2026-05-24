@@ -6,6 +6,7 @@ import pandas as pd
 import yfinance as yf
 
 from app.config import HISTORY_PERIOD
+from app.utils.network import without_proxy
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +14,9 @@ logger = logging.getLogger(__name__)
 def fetch_history(symbol: str, period: str = HISTORY_PERIOD) -> pd.DataFrame | None:
     """Download OHLCV history for a single symbol."""
     try:
-        ticker = yf.Ticker(symbol)
-        df = ticker.history(period=period, auto_adjust=True)
+        with without_proxy():
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(period=period, auto_adjust=True)
     except Exception:
         logger.exception("Failed to fetch %s", symbol)
         return None

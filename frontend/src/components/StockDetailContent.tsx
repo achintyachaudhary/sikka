@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchStockInsights } from "../api";
+import { fetchStockInsights, refreshStockData } from "../api";
 import type { StockInsightsResponse } from "../types";
 import FinancialChart from "./FinancialChart";
 import ShareholdingChart from "./ShareholdingChart";
@@ -9,6 +9,19 @@ function fmtCapCr(v: number | null): string {
   if (v >= 100_000) return `₹${(v / 100_000).toFixed(2)} L Cr`;
   if (v >= 1000) return `₹${(v / 1000).toFixed(1)}k Cr`;
   return `₹${v.toFixed(0)} Cr`;
+}
+
+function fmtTs(ts: string | null): string {
+  if (!ts) return "never";
+  try {
+    return new Date(ts).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return ts.split("T")[0];
+  }
 }
 
 interface StockDetailContentProps {
@@ -22,6 +35,7 @@ export default function StockDetailContent({
 }: StockDetailContentProps) {
   const [data, setData] = useState<StockInsightsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchSymbol = yfSymbol || symbol;
@@ -33,28 +47,31 @@ export default function StockDetailContent({
     setData(null);
 
     fetchStockInsights(fetchSymbol)
-      .then((res) => {
-        if (!cancelled) setData(res);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .then((res) => { if (!cancelled) setData(res); })
+      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load"); })
+      .finally(() => { if (!cancelled) setLoading(false); });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [fetchSymbol]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    setError(null);
+    try {
+      const res = await refreshStockData(fetchSymbol);
+      setData(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   if (loading) {
     return <p className="panel-loading">Loading company details…</p>;
   }
 
-  if (error) {
+  if (error && !data) {
     return <p className="panel-error">{error}</p>;
   }
 
@@ -62,6 +79,30 @@ export default function StockDetailContent({
 
   return (
     <>
+      {/* Data freshness + Refresh button */}
+      <div className="refresh-bar">
+        <span>
+          Profile: <strong>{fmtTs(data.last_profile_updated)}</strong>
+        </span>
+        <span>·</span>
+        <span>
+          Holdings: <strong>{fmtTs(data.last_holdings_updated)}</strong>
+        </span>
+        <span>·</span>
+        <span>
+          Financials: <strong>{fmtTs(data.last_financials_updated)}</strong>
+        </span>
+        <button
+          type="button"
+          className="refresh-btn"
+          disabled={refreshing}
+          onClick={handleRefresh}
+        >
+          {refreshing ? "Refreshing…" : "↻ Refresh Data"}
+        </button>
+        {error && <span style={{ color: "var(--red)" }}>{error}</span>}
+      </div>
+
       <div className="detail-meta">
         <div className="detail-meta-row">
           {data.market_cap_category && (
@@ -74,6 +115,21 @@ export default function StockDetailContent({
           )}
           {data.industry && (
             <span className="meta-badge industry">{data.industry}</span>
+          )}
+          {data.overall_score != null && (
+            <span
+              className={`overall-score ${
+                data.overall_score >= 6.5
+                  ? "score-green"
+                  : data.overall_score >= 4
+                  ? "score-amber"
+                  : "score-red"
+              }`}
+              style={{ width: "auto", borderRadius: "6px", padding: "0.2rem 0.5rem" }}
+              title="Overall score (0–10)"
+            >
+              ★ {data.overall_score}/10
+            </span>
           )}
         </div>
         {data.market_cap_cr != null && (

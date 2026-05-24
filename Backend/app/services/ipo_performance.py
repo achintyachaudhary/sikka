@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import yfinance as yf
 
 from app.config import SCAN_MAX_WORKERS
+from app.utils.network import without_proxy
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,8 @@ def _fetch_price_history(
 
     for yf_symbol in _yf_symbols(symbol):
         try:
-            df = yf.Ticker(yf_symbol).history(start=start, end=end, auto_adjust=True)
+            with without_proxy():
+                df = yf.Ticker(yf_symbol).history(start=start, end=end, auto_adjust=True)
         except Exception:
             continue
         if df is not None and not df.empty:

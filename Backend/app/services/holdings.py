@@ -12,6 +12,7 @@ from pathlib import Path
 import requests
 import yfinance as yf
 
+from app.utils.network import make_requests_session, without_proxy
 from app.watchlists.loader import NSE_HEADERS
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ def _parse_nse_date(raw: str) -> str | None:
 
 
 def _nse_session() -> requests.Session:
-    session = requests.Session()
+    session = make_requests_session()
     session.headers.update(NSE_HEADERS)
     session.headers["Referer"] = (
         "https://www.nseindia.com/companies-listing/corporate-filings-shareholding-pattern"
@@ -106,7 +107,8 @@ def _fetch_nse_master(nse_symbol: str) -> dict | None:
 
 def _parse_xbrl_holdings(xbrl_url: str) -> dict[str, float | None]:
     """Extract category % from NSE shareholding XBRL (summary context)."""
-    response = requests.get(xbrl_url, headers=NSE_HEADERS, timeout=45)
+    session = make_requests_session()
+    response = session.get(xbrl_url, headers=NSE_HEADERS, timeout=45)
     response.raise_for_status()
     root = ET.fromstring(response.content)
 
@@ -133,7 +135,8 @@ def _parse_xbrl_holdings(xbrl_url: str) -> dict[str, float | None]:
 
 def _fetch_yfinance_holdings(yf_symbol: str) -> dict[str, float | None]:
     try:
-        info = yf.Ticker(yf_symbol).info
+        with without_proxy():
+            info = yf.Ticker(yf_symbol).info
         inst = info.get("heldPercentInstitutions")
         insider = info.get("heldPercentInsiders")
         return {

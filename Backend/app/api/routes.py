@@ -120,6 +120,12 @@ def stock_insights(symbol: str) -> StockInsightsResponse:
     return get_stock_insights(symbol)
 
 
+@router.post("/api/refresh/stock/{symbol}", response_model=StockInsightsResponse)
+def refresh_stock(symbol: str) -> StockInsightsResponse:
+    """Force-refresh all DB-cached data (profile, holdings, financials) for a symbol."""
+    return get_stock_insights(symbol, force_refresh=True)
+
+
 @router.get("/api/stock/{symbol}", response_model=StockDetail)
 def stock_detail(symbol: str) -> StockDetail:
     detail = analyze_symbol_detail(symbol)

@@ -7,6 +7,8 @@ from datetime import datetime
 
 import yfinance as yf
 
+from app.utils.network import without_proxy
+
 logger = logging.getLogger(__name__)
 
 REVENUE_ROWS = ("Total Revenue", "Operating Revenue")
@@ -93,9 +95,10 @@ def _growth_summary(periods: list[dict]) -> dict[str, float | None]:
 def get_financials(symbol: str) -> dict:
     yf_sym = _yf_symbol(symbol)
     try:
-        ticker = yf.Ticker(yf_sym)
-        quarterly = ticker.quarterly_income_stmt
-        annual = ticker.income_stmt
+        with without_proxy():
+            ticker = yf.Ticker(yf_sym)
+            quarterly = ticker.quarterly_income_stmt
+            annual = ticker.income_stmt
     except Exception:
         logger.exception("Financial fetch failed for %s", symbol)
         return {"quarterly": [], "yearly": [], "summary": {}}

@@ -59,6 +59,8 @@ export default function StockTable({ rows }: StockTableProps) {
         return row.change_20d_pct;
       case "score":
         return row.score;
+      case "overall_score":
+        return row.overall_score;
       case "signals":
         return row.signals.length;
       default:
@@ -89,6 +91,7 @@ export default function StockTable({ rows }: StockTableProps) {
               <SortableTh label="5d %" sortKey="change_5d_pct" activeKey={sortKey} direction={sortDir} onSort={toggleSort} />
               <SortableTh label="20d %" sortKey="change_20d_pct" activeKey={sortKey} direction={sortDir} onSort={toggleSort} />
               <SortableTh label="Score" sortKey="score" activeKey={sortKey} direction={sortDir} onSort={toggleSort} />
+              <SortableTh label="Rating" sortKey="overall_score" activeKey={sortKey} direction={sortDir} onSort={toggleSort} />
               <SortableTh label="Signals" sortKey="signals" activeKey={sortKey} direction={sortDir} onSort={toggleSort} />
             </tr>
           </thead>
@@ -130,6 +133,24 @@ export default function StockTable({ rows }: StockTableProps) {
                   <td><PctCell value={row.change_5d_pct} /></td>
                   <td><PctCell value={row.change_20d_pct} /></td>
                   <td><span className={scoreClass}>{row.score}</span></td>
+                  <td>
+                    {row.overall_score != null ? (
+                      <span
+                        className={`overall-score ${
+                          row.overall_score >= 6.5
+                            ? "score-green"
+                            : row.overall_score >= 4
+                            ? "score-amber"
+                            : "score-red"
+                        }`}
+                        title={`Overall score: ${row.overall_score}/10`}
+                      >
+                        {row.overall_score}
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--muted)", fontSize: "0.75rem" }}>—</span>
+                    )}
+                  </td>
                   <td>
                     <div className="tags">
                       {row.signals.map((s) => (
