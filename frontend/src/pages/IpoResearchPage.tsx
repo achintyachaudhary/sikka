@@ -24,6 +24,8 @@ export default function IpoResearchPage() {
     nse_universe?: number;
     catalog_total?: number;
     with_market_data?: number;
+    with_subscription_data?: number;
+    subscription_pending?: number;
     no_market_data?: number;
     ml_ready?: number;
     universe_size?: number;
@@ -84,8 +86,9 @@ export default function IpoResearchPage() {
         pending = batch.pending_remaining;
         const catalog = batch.catalog_total ?? batch.with_market_data;
         const withPrices = batch.with_market_data ?? 0;
+        const withSub = batch.with_subscription_data ?? 0;
         setPrepareMsg(
-          `Batch ${batchNum}: catalog ${catalog} IPOs · ${withPrices} with prices · ${totalSaved} ML-ready · ${pending} left…`,
+          `Batch ${batchNum}: ${withSub} with subscription · ${withPrices} with prices · ${totalSaved} ML-ready · ${pending} price pending…`,
         );
       }
       const last = await fetchIpoResearchDatasetStats(RESEARCH_MONTHS).catch(() => null);
@@ -154,10 +157,10 @@ export default function IpoResearchPage() {
       </p>
       <p className="ipo-research-hint" style={{ marginTop: "0.5rem" }}>
         <strong>Prepare data</strong> uses the <strong>same SQLite table as IPO Tracker</strong>{" "}
-        (<code>ipo_listings</code>). Step 1: sync NSE + Yahoo prices for the last 6 months.
-        Step 2: build ML features for <em>every</em> IPO that has prices — ML-ready count should
-        match “with Yahoo prices”. IPOs with no Yahoo history (very recent listings, bad tickers)
-        cannot be trained.
+        (<code>ipo_listings</code>). Step 1: fetch <strong>subscription times</strong> (overall,
+        QIB, NII, retail) via Gemini into the same DB as IPO Tracker. Step 2: sync Yahoo prices.
+        Step 3: build ML features including subscription demand. Requires{" "}
+        <code>GEMINI_API_KEY</code> in Backend/.env for subscription fetch.
       </p>
 
       <section className="ipo-research-panel">
@@ -165,8 +168,14 @@ export default function IpoResearchPage() {
         <p className="meta">
           <strong>{stats?.nse_universe ?? stats?.universe_size ?? 0}</strong> NSE equity IPOs
           (last {stats?.months_back ?? RESEARCH_MONTHS} months)
+          {stats?.with_subscription_data != null && (
+            <> · <strong>{stats.with_subscription_data}</strong> with subscription data</>
+          )}
           {stats?.with_market_data != null && (
             <> · <strong>{stats.with_market_data}</strong> with Yahoo prices</>
+          )}
+          {stats?.subscription_pending != null && stats.subscription_pending > 0 && (
+            <> · {stats.subscription_pending} subscription fetch pending</>
           )}
           {stats?.total_rows != null && (
             <> · <strong>{stats.total_rows}</strong> ML-ready</>

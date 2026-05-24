@@ -239,6 +239,16 @@ export async function fetchTopMovers() {
 
 // ── IPO Research (ML) ───────────────────────────────────────────────────────
 
+export async function fetchIpoPortfolioSimulation(months = 6, investmentInr = 100_000) {
+  const params = new URLSearchParams({
+    months: String(months),
+    investment_inr: String(investmentInr),
+  });
+  const res = await fetch(`/api/ipo-research/portfolio-simulation?${params}`);
+  if (!res.ok) throw new Error(`Portfolio simulation failed (${res.status})`);
+  return res.json() as Promise<import("./types/ipoPortfolio").IpoPortfolioSimulation>;
+}
+
 export async function fetchIpoResearchDatasetStats(months = 6) {
   const params = new URLSearchParams({ months: String(months) });
   const res = await fetch(`/api/ipo-research/dataset/stats?${params}`);
@@ -247,7 +257,12 @@ export async function fetchIpoResearchDatasetStats(months = 6) {
 }
 
 export async function prepareIpoResearchDataset(force = false, months = 6) {
-  const params = new URLSearchParams({ batch_size: "40", months: String(months) });
+  const params = new URLSearchParams({
+    batch_size: "40",
+    months: String(months),
+    subscription_batch_size: "8",
+    fetch_subscription: "true",
+  });
   if (force) params.set("force", "true");
   const res = await fetch(`/api/ipo-research/dataset/prepare?${params}`, {
     method: "POST",

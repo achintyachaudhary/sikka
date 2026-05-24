@@ -6,7 +6,7 @@ This document describes the **IPO Research** feature: building a historical IPO 
 
 | Step | What happens |
 |------|----------------|
-| **1. Prepare data** | Syncs NSE past-issues + Yahoo prices into shared SQLite table **`ipo_listings`** (same DB as IPO Tracker), then builds ML feature rows for every IPO that has price data. |
+| **1. Prepare data** | Fetches **investor subscription times** (Gemini → `ipo_llm_research`), syncs Yahoo prices into **`ipo_listings`** (shared with IPO Tracker), then builds ML rows including subscription features. |
 | **2. Market indices** | NIFTY, BANKNIFTY, SENSEX **1Y daily bars** in `market_index_cache` (used for returns & technicals before each listing). |
 | **3. ML runs** | scikit-learn classifiers predict whether a defined “profit” target would have been met; feature importance and rule-based insights are saved per run. |
 | **4. UI** | **IPO Research** tab: prepare data, run algorithms, view run history and outcomes. |
@@ -15,7 +15,7 @@ This document describes the **IPO Research** feature: building a historical IPO 
 
 - **NSE** — `https://www.nseindia.com/api/public-past-issues` (full historical IPO list).
 - **yfinance** — Post-listing OHLC for each symbol (`.NS` / `.BO`).
-- **SQLite** — `ipo_llm_research` (optional subscription features from Gemini).
+- **SQLite** — `ipo_llm_research` (subscription times from Gemini; fetched automatically during Prepare when `GEMINI_API_KEY` is set).
 - **Market indices** — `^NSEI`, `^NSEBANK`, `^BSESN` via yfinance, cached in DB.
 
 ## Feature engineering
@@ -25,7 +25,7 @@ Per IPO row:
 | Category | Features |
 |----------|----------|
 | **IPO** | `issue_price`, `issue_price_log`, `security_type_sme`, listing month/year |
-| **Subscription** (if LLM data exists) | `overall_times_subscribed`, QIB/NII/retail times |
+| **Subscription** (Gemini / `ipo_llm_research`) | `overall_times_subscribed`, `overall_times_subscribed_log`, `qib_times_subscribed`, `nii_times_subscribed`, `retail_times_subscribed`, `employee_times_subscribed`, `qib_to_retail_ratio`, `has_subscription_data` |
 | **Market (at listing)** | `nifty/banknifty/sensex_return_1w/1m/3m_before`, `market_avg_return_1m_before` |
 | **Technical (NIFTY, via `ta`)** | `index_rsi_14`, `index_macd_hist` at listing |
 
@@ -119,7 +119,7 @@ POST /api/ipo-research/runs
 ## Limitations
 
 - **Survivorship / data quality** — Delisted or thinly traded names may lack yfinance history.
-- **Sparse subscription data** — LLM subscription fields exist only for symbols you fetched via IPO Tracker.
+- **Subscription fetch** — Prepare pulls subscription data in batches (8 symbols per API call). Without `GEMINI_API_KEY`, ML runs without subscription features (`has_subscription_data=0`).
 - **Non-stationary markets** — Past patterns may not repeat; accuracy is not a trading edge.
 - **Not advice** — For research and learning only.
 

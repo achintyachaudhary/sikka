@@ -119,8 +119,28 @@ def _generate_pattern_insights(
             cold = sub[sub["overall_times_subscribed"] < 2][target_col].mean()
             if hot is not None and cold is not None:
                 insights.append(
-                    f"Heavily subscribed IPOs (≥3×): {hot:.1%} positive outcomes "
+                    f"Heavily subscribed IPOs (≥3× overall): {hot:.1%} positive outcomes "
                     f"vs lightly subscribed (<2×): {cold:.1%}."
+                )
+
+    if "qib_times_subscribed" in df.columns:
+        qib_df = df[df["qib_times_subscribed"].notna()]
+        if len(qib_df) >= 12 and target_col in qib_df.columns:
+            strong_qib = qib_df[qib_df["qib_times_subscribed"] >= 25][target_col].mean()
+            weak_qib = qib_df[qib_df["qib_times_subscribed"] < 10][target_col].mean()
+            if strong_qib is not None and weak_qib is not None:
+                insights.append(
+                    f"High QIB demand (≥25×): {strong_qib:.1%} hit rate vs low QIB (<10×): {weak_qib:.1%}."
+                )
+
+    if "retail_times_subscribed" in df.columns:
+        ret = df[df["retail_times_subscribed"].notna()]
+        if len(ret) >= 12 and target_col in ret.columns:
+            hot_ret = ret[ret["retail_times_subscribed"] >= 5][target_col].mean()
+            cold_ret = ret[ret["retail_times_subscribed"] < 2][target_col].mean()
+            if hot_ret is not None and cold_ret is not None:
+                insights.append(
+                    f"Retail oversubscription (≥5×): {hot_ret:.1%} vs under 2× retail: {cold_ret:.1%}."
                 )
 
     if "security_type_sme" in df.columns:
@@ -333,6 +353,7 @@ def run_ml_experiment(
             prep_summary = prepare_ipo_dataset(
                 force_refresh=force_data_refresh,
                 months=6,
+                fetch_subscription=True,
             )
 
         df = load_dataset_dataframe()
